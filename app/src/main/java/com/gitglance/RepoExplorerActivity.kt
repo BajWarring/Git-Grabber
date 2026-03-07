@@ -200,7 +200,7 @@ class RepoExplorerActivity : AppCompatActivity() {
         try {
             val blob = ApiClient.service.getBlob(item.url, auth())
             if (blob.content == null) return@withContext "// Empty"
-            val b64 = blob.content.replace("\s".toRegex(), "")
+            val b64 = blob.content.replace("\\s".toRegex(), "")
             String(Base64.getDecoder().decode(b64), Charsets.UTF_8)
         } catch (e: Exception) { "// Error: ${e.message}" }
     }
