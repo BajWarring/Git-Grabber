@@ -91,14 +91,25 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       # -----------------------------
+      # Gradlew
+      # -----------------------------
+     
+      - name: Generate Gradle Wrapper
+        run: |
+         cd android
+         gradle wrapper --gradle-version 8.7
+         chmod +x gradlew
+      
+      # -----------------------------
       # Build APK
       # -----------------------------
       - name: Build APK
         id: build_apk
         if: success()
         run: |
-          set -o pipefail
-          flutter build apk --release --android-skip-build-dependency-validation 2>&1 | tee build.log
+         set -o pipefail
+         cd android && ./gradlew assembleRelease --stacktrace 2>&1 | tee ../build.log
+         cd ..
 
       - name: Build Failure Summary
         if: failure() && steps.build_apk.outcome == 'failure'
