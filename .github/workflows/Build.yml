@@ -123,13 +123,6 @@ jobs:
       # Locate Apk
       # -----------------------------
 
-      - name: Upload Build Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-         name: build-log
-         path: build.log
-         retention-days: 3
       
       - name: Locate APK
         if: always()
@@ -181,8 +174,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GitGrabber_${{ steps.version.outputs.tag }}_${{ steps.version.outputs.build_time }}
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30build
 
       # -----------------------------
       # Final build summary
