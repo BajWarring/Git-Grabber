@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="36dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingEnd="8dp"
+    android:background="?attr/selectableItemBackground">
+
+    <!-- Dynamic indent -->
+    <View
+        android:id="@+id/indentSpace"
+        android:layout_width="0dp"
+        android:layout_height="1dp" />
+
+    <!-- Folder caret -->
+    <ImageView
+        android:id="@+id/ivCaret"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_caret_right"
+        android:layout_marginEnd="2dp"
+        android:contentDescription="@null"
+        app:tint="@color/text_muted" />
+
+    <!-- Checkbox -->
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="4dp"
+        app:buttonTint="@color/checkbox_tint"
+        android:scaleX="0.8"
+        android:scaleY="0.8" />
+
+    <!-- File/folder icon -->
+    <ImageView
+        android:id="@+id/ivIcon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginEnd="7dp"
+        android:contentDescription="@null" />
+
+    <!-- File name -->
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/text_base"
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        android:ellipsize="end"
+        android:singleLine="true" />
+
+    <!-- Extension badge -->
+    <TextView
+        android:id="@+id/tvExt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_badge_dim"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="1dp"
+        android:textColor="@color/text_muted"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:layout_marginEnd="6dp"
+        android:visibility="gone" />
+
+    <!-- Preview button (files only) -->
+    <ImageButton
+        android:id="@+id/btnPreview"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/ic_eye"
+        android:background="@drawable/bg_icon_dim"
+        android:padding="6dp"
+        android:contentDescription="Preview"
+        app:tint="@color/blue_light"
+        android:visibility="gone" />
+
+</LinearLayout>

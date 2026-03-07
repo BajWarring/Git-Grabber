@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_surface">
+
+    <!-- App bar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_panel"
+        app:elevation="4dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/bg_panel"
+            app:titleTextColor="@color/text_strong"
+            app:subtitleTextColor="@color/text_dim"
+            app:navigationIconTint="@color/text_base" />
+
+        <!-- Branch + stats row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="6dp">
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_git_merge"
+                app:tint="@color/text_muted"
+                android:contentDescription="@null" />
+
+            <Spinner
+                android:id="@+id/spinnerBranch"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@android:color/transparent" />
+
+            <TextView
+                android:id="@+id/tvFileCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/text_muted"
+                android:textSize="11sp"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <!-- Select / export toolbar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingBottom="6dp"
+            android:background="@color/bg_card">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelectAll"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="All"
+                android:textSize="12sp"
+                android:paddingHorizontal="10dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                app:cornerRadius="8dp"
+                app:strokeColor="@color/border"
+                android:textColor="@color/text_base"
+                android:backgroundTint="@color/bg_input" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelectNone"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="None"
+                android:textSize="12sp"
+                android:paddingHorizontal="10dp"
+                android:layout_marginStart="6dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                app:cornerRadius="8dp"
+                app:strokeColor="@color/border"
+                android:textColor="@color/text_base"
+                android:backgroundTint="@color/bg_input" />
+
+            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTxt"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text=".txt"
+                android:textSize="12sp"
+                android:textColor="@color/text_base"
+                android:paddingHorizontal="12dp"
+                android:layout_marginEnd="6dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                app:cornerRadius="8dp"
+                app:strokeColor="@color/border"
+                android:backgroundTint="@color/bg_input" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnZip"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text=".zip"
+                android:textSize="12sp"
+                android:textColor="@color/white"
+                android:paddingHorizontal="12dp"
+                style="@style/Widget.MaterialComponents.Button"
+                app:cornerRadius="8dp"
+                android:backgroundTint="@color/blue_primary" />
+        </LinearLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Content -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <!-- Loading -->
+        <ProgressBar
+            android:id="@+id/progressLoading"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:indeterminate="true"
+            android:progressTint="@color/blue_primary"
+            android:indeterminateTint="@color/blue_primary"
+            android:visibility="gone" />
+
+        <!-- Tree -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvTree"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:paddingHorizontal="4dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false" />
+
+        <!-- Export progress -->
+        <LinearLayout
+            android:id="@+id/exportLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/bg_panel"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="14dp"
+            android:visibility="gone"
+            style="?attr/elevationOverlayEnabled">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Exporting files…"
+                android:textColor="@color/text_base"
+                android:textSize="13sp"
+                android:layout_marginBottom="8dp" />
+
+            <ProgressBar
+                android:id="@+id/exportProgress"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                android:max="100"
+                android:progressTint="@color/blue_primary"
+                android:progressBackgroundTint="@color/border" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

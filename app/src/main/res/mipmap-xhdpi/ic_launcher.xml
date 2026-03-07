@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/colorPrimary"/>
+    <foreground>
+        <vector android:width="108dp" android:height="108dp"
+            android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#ffffff"
+                android:pathData="M54,27a6,6 0,1 0,6,6 6,6 0,0 0,-6,-6zM72,45a6,6 0,1 0,6,6 6,6 0,0 0,-6,-6zM36,63a6,6 0,1 0,6,6 6,6 0,0 0,-6,-6z"/>
+            <path android:strokeColor="#ffffff" android:strokeWidth="5"
+                android:strokeLineCap="round" android:fillColor="#00000000"
+                android:pathData="M54,33 L54,63 M41,68 L67,52"/>
+        </vector>
+    </foreground>
+</adaptive-icon>
