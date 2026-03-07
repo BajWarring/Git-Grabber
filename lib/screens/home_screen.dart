@@ -301,9 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 await _storage.setActivePatLabel(null);
                 _load();
               },
-              child: Text(
+              child: const Text(
                 'Deactivate',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   color: AppColors.textDim,
                   decoration: TextDecoration.underline,
