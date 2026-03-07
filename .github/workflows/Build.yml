@@ -1,8 +1,6 @@
 name: 1. Android Build
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
