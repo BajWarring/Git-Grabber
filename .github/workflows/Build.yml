@@ -113,18 +113,19 @@ jobs:
       # -----------------------------
       
       - name: Locate APK
-        if: success() || steps.build_apk.outcome == 'success'
+        if: always()
         run: |
-          echo "=== Searching for APKs ===" >> $GITHUB_STEP_SUMMARY
-          find build -name "*.apk" 2>/dev/null | tee -a $GITHUB_STEP_SUMMARY
+         echo "=== All APKs found ===" >> $GITHUB_STEP_SUMMARY
+         find build -name "*.apk" 2>/dev/null | tee -a $GITHUB_STEP_SUMMARY || echo "No APKs found at all"
     
-          # Copy to Flutter's expected path if it landed elsewhere
-          FOUND=$(find build -name "app-release.apk" | head -n1)
-          if [ -n "$FOUND" ]; then
-          mkdir -p build/app/outputs/flutter-apk
-          cp "$FOUND" build/app/outputs/flutter-apk/app-release.apk
-          echo "Copied from: $FOUND"
-          fi
+         FOUND=$(find build -name "*.apk" | head -n1)
+         if [ -n "$FOUND" ]; then
+         mkdir -p build/app/outputs/flutter-apk
+         cp "$FOUND" build/app/outputs/flutter-apk/app-release.apk
+         echo "Copied from: $FOUND" >> $GITHUB_STEP_SUMMARY
+         else
+         echo "❌ No APK produced anywhere" >> $GITHUB_STEP_SUMMARY
+         fi
 
 
       # -----------------------------
