@@ -883,7 +883,7 @@ class _RepoScreenState extends State<RepoScreen> {
   }
 
   String _fmtBytes(int b) {
-    if (b < 1024) return '$bB';
+    if (b < 1024) return '$b B';
     if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(1)}KB';
     return '${(b / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
