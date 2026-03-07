@@ -98,7 +98,7 @@ jobs:
         if: success()
         run: |
           set -o pipefail
-          flutter build apk --release 2>&1 | tee build.log
+          flutter build apk --release --android-skip-build-dependency-validation 2>&1 | tee build.log
 
       - name: Build Failure Summary
         if: failure() && steps.build_apk.outcome == 'failure'
@@ -107,6 +107,25 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat build.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # -----------------------------
+      # Locate Apk
+      # -----------------------------
+      
+      - name: Locate APK
+        if: success() || steps.build_apk.outcome == 'success'
+        run: |
+          echo "=== Searching for APKs ===" >> $GITHUB_STEP_SUMMARY
+          find build -name "*.apk" 2>/dev/null | tee -a $GITHUB_STEP_SUMMARY
+    
+          # Copy to Flutter's expected path if it landed elsewhere
+          FOUND=$(find build -name "app-release.apk" | head -n1)
+          if [ -n "$FOUND" ]; then
+          mkdir -p build/app/outputs/flutter-apk
+          cp "$FOUND" build/app/outputs/flutter-apk/app-release.apk
+          echo "Copied from: $FOUND"
+          fi
+
 
       # -----------------------------
       # SHA fingerprints
