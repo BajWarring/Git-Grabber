@@ -28,12 +28,23 @@ android {
         multiDexEnabled = true
     }
 
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        create("release") {
+        val props = java.util.Properties()
+        rootProject.file("key.properties").inputStream().use { props.load(it) }
+        storeFile = file(props["storeFile"] as String)
+        storePassword = props["storePassword"] as String
+        keyAlias = props["keyAlias"] as String
+        keyPassword = props["keyPassword"] as String
         }
-    }
-}
+     }
+
+      buildTypes {
+       release {
+       signingConfig = signingConfigs.getByName("release")
+       }
+     }
+   }
 
 flutter {
     source = "../.."
