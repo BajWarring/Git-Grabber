@@ -8,19 +8,18 @@
         <item name="colorOnPrimaryContainer">@color/colorOnPrimaryContainer</item>
         <item name="colorSecondary">@color/colorSecondary</item>
         <item name="colorOnSecondary">@color/colorOnSecondary</item>
-        <item name="colorBackground">@color/colorBackground</item>
-        <item name="colorOnBackground">@color/colorOnBackground</item>
         <item name="colorSurface">@color/colorSurface</item>
         <item name="colorOnSurface">@color/colorOnSurface</item>
         <item name="colorError">@color/colorError</item>
         <item name="colorOnError">@color/colorOnError</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
         <item name="android:windowBackground">@color/bg_surface</item>
         <item name="android:statusBarColor">@color/bg_panel</item>
         <item name="android:navigationBarColor">@color/bg_panel</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
-        <item name="textColorPrimary">@color/text_strong</item>
-        <item name="textColorSecondary">@color/text_dim</item>
+        <item name="android:textColorPrimary">@color/text_strong</item>
+        <item name="android:textColorSecondary">@color/text_dim</item>
         <item name="materialThemeOverlay">@style/ThemeOverlay.GitGlance</item>
     </style>
 
@@ -30,7 +29,7 @@
         <item name="colorControlNormal">@color/text_dim</item>
         <item name="colorControlActivated">@color/blue_primary</item>
         <item name="colorControlHighlight">#1f3b6e</item>
-        <item name="editTextColor">@color/text_strong</item>
+        <item name="android:editTextColor">@color/text_strong</item>
         <item name="android:textColorHint">@color/text_muted</item>
         <item name="boxStrokeColor">@color/border</item>
         <item name="boxBackgroundColor">@color/bg_input</item>
@@ -44,7 +43,6 @@
         <item name="boxCornerRadiusBottomStart">10dp</item>
         <item name="boxCornerRadiusBottomEnd">10dp</item>
         <item name="hintTextColor">@color/text_muted</item>
-        <item name="android:paddingTop">0dp</item>
     </style>
 
     <style name="BottomSheetDialog" parent="Theme.MaterialComponents.BottomSheetDialog">
