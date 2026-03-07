@@ -1,5 +1,2 @@
-plugins {
-    id("com.android.application") version "8.3.0" apply false
-    id("com.android.library") version "8.3.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.0" apply false
-}
+// AGP is managed by Flutter's plugin loader in settings.gradle.kts
+// No plugin declarations needed here
