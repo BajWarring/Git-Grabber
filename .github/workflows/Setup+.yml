@@ -13,20 +13,20 @@ on:
         required: true
         default: "com.example.app"
 
-      pubspec_description:
-        description: "Description for pubspec.yaml"
+      pubspec_name:
+        description: "Project name for pubspec.yaml (example: example_app)"
         required: true
-        default: "A new Flutter project."
+        default: "example_app"
 
 permissions:
   contents: write
 
 jobs:
-  init-project:
+  setup:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
       - name: Setup Flutter
@@ -35,48 +35,50 @@ jobs:
           flutter-version: "3.19.0"
           channel: stable
 
-      - name: Derive Project Variables
-        run: |
-          PACKAGE="${{ github.event.inputs.package_name }}"
-          APPNAME="${{ github.event.inputs.app_name }}"
-          DESC="${{ github.event.inputs.pubspec_description }}"
-
-          # Extract project name (last segment)
-          PROJECT=$(echo $PACKAGE | awk -F. '{print $NF}')
-
-          # Extract organization (everything except last segment)
-          ORG=$(echo $PACKAGE | sed "s/\.$PROJECT//")
-
-          echo "PACKAGE=$PACKAGE" >> $GITHUB_ENV
-          echo "PROJECT=$PROJECT" >> $GITHUB_ENV
-          echo "ORG=$ORG" >> $GITHUB_ENV
-          echo "APPNAME=$APPNAME" >> $GITHUB_ENV
-          echo "DESC=$DESC" >> $GITHUB_ENV
-
       - name: Create Flutter Project
         run: |
-          flutter create --org $ORG --project-name $PROJECT .
+          flutter create app
 
-          # Remove default test to keep repo clean
-          rm -rf test/widget_test.dart
-
-      - name: Configure App Name
+      - name: Move Project To Root
         run: |
-          # Update Android launcher label
-          sed -i "s/android:label=\".*\"/android:label=\"$APPNAME\"/g" android/app/src/main/AndroidManifest.xml
+          shopt -s dotglob
+          mv app/* .
+          rm -rf app
 
-          # Update strings.xml launcher name
-          sed -i "s/<string name=\"app_name\">.*<\/string>/<string name=\"app_name\">$APPNAME<\/string>/g" android/app/src/main/res/values/strings.xml
-
-      - name: Update Pubspec Description
+      - name: Apply User Configuration
         run: |
-          sed -i "s/^description:.*/description: $DESC/g" pubspec.yaml
+          APP_NAME="${{ github.event.inputs.app_name }}"
+          PACKAGE_NAME="${{ github.event.inputs.package_name }}"
+          PUBSPEC_NAME="${{ github.event.inputs.pubspec_name }}"
 
-      - name: Commit and Push
+          OLD_PACKAGE="com.example.app"
+
+          # Update pubspec project name
+          sed -i "s/^name: .*/name: $PUBSPEC_NAME/" pubspec.yaml
+
+          # Update Android label
+          sed -i "s/android:label=\".*\"/android:label=\"$APP_NAME\"/" android/app/src/main/AndroidManifest.xml
+
+          # Update Android package
+          sed -i "s/package=\"com.example.app\"/package=\"$PACKAGE_NAME\"/" android/app/src/main/AndroidManifest.xml
+          sed -i "s/applicationId \"com.example.app\"/applicationId \"$PACKAGE_NAME\"/" android/app/build.gradle
+
+          # Update Kotlin package declaration
+          sed -i "s/package com.example.app/package $PACKAGE_NAME/" android/app/src/main/kotlin/com/example/app/MainActivity.kt
+
+          # Move Kotlin directory to match package
+          NEW_PATH=$(echo $PACKAGE_NAME | tr '.' '/')
+          mkdir -p android/app/src/main/kotlin/$NEW_PATH
+          mv android/app/src/main/kotlin/com/example/app/MainActivity.kt android/app/src/main/kotlin/$NEW_PATH/
+          rm -rf android/app/src/main/kotlin/com/example
+
+      - name: Remove Test Folder
+        run: rm -rf test
+
+      - name: Commit Setup
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-
           git add .
-          git commit -m "Initialize $APPNAME ($PACKAGE)"
+          git commit -m "Initialize Flutter app (${{ github.event.inputs.package_name }})"
           git push
