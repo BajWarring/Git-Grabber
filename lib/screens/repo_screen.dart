@@ -649,7 +649,7 @@ class _RepoScreenState extends State<RepoScreen> {
                 onPressed: _exportZip,
                 icon: const Icon(Icons.folder_zip_rounded, size: 16),
                 label: Text(
-                  '.zip${_selectedCount > 0 ? ' (${ _selectedCount})' : ''}',
+                  '.zip${_selectedCount > 0 ? ' ($_selectedCount)' : ''}',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
