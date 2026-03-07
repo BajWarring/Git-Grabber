@@ -81,7 +81,7 @@ class FilePreviewBottomSheet : BottomSheetDialogFragment() {
                 val auth = if (pat.isNotEmpty()) "token $pat" else ""
                 val blob = ApiClient.service.getBlob(url, auth)
                 val content = if (blob.content != null) {
-                    val b64 = blob.content.replace("\s".toRegex(), "")
+                    val b64 = blob.content.replace("\\s".toRegex(), "")
                     String(Base64.getDecoder().decode(b64), Charsets.UTF_8)
                 } else "// File content unavailable"
 
