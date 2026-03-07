@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       app_name:
-        description: "App Name (shown on device)"
+        description: "App name shown on device"
         required: true
-        default: "My Flutter App"
+        default: "My App"
 
       package_name:
-        description: "Android Package Name (e.g. com.example.myapp)"
+        description: "Android package name (example: com.example.app)"
         required: true
-        default: "com.example.myapp"
+        default: "com.example.app"
 
       pubspec_description:
-        description: "Description in pubspec.yaml"
+        description: "Description for pubspec.yaml"
         required: true
         default: "A new Flutter project."
 
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Flutter
@@ -35,32 +35,41 @@ jobs:
           flutter-version: "3.19.0"
           channel: stable
 
-      - name: Prepare Variables
+      - name: Derive Project Variables
         run: |
           PACKAGE="${{ github.event.inputs.package_name }}"
           APPNAME="${{ github.event.inputs.app_name }}"
           DESC="${{ github.event.inputs.pubspec_description }}"
 
-          # Convert package name to dart project name (dots -> underscores)
-          PROJECT=$(echo "$PACKAGE" | sed 's/\./_/g')
+          # Extract project name (last segment)
+          PROJECT=$(echo $PACKAGE | awk -F. '{print $NF}')
+
+          # Extract organization (everything except last segment)
+          ORG=$(echo $PACKAGE | sed "s/\.$PROJECT//")
 
           echo "PACKAGE=$PACKAGE" >> $GITHUB_ENV
+          echo "PROJECT=$PROJECT" >> $GITHUB_ENV
+          echo "ORG=$ORG" >> $GITHUB_ENV
           echo "APPNAME=$APPNAME" >> $GITHUB_ENV
           echo "DESC=$DESC" >> $GITHUB_ENV
-          echo "PROJECT=$PROJECT" >> $GITHUB_ENV
 
-      - name: Create Flutter App
+      - name: Create Flutter Project
         run: |
-          flutter create --org $PACKAGE --project-name $PROJECT .
+          flutter create --org $ORG --project-name $PROJECT .
 
+          # Remove default test to keep repo clean
           rm -rf test/widget_test.dart
 
-      - name: Configure App Name and Pubspec
+      - name: Configure App Name
         run: |
-          # Update Android app label
+          # Update Android launcher label
           sed -i "s/android:label=\".*\"/android:label=\"$APPNAME\"/g" android/app/src/main/AndroidManifest.xml
 
-          # Update pubspec description
+          # Update strings.xml launcher name
+          sed -i "s/<string name=\"app_name\">.*<\/string>/<string name=\"app_name\">$APPNAME<\/string>/g" android/app/src/main/res/values/strings.xml
+
+      - name: Update Pubspec Description
+        run: |
           sed -i "s/^description:.*/description: $DESC/g" pubspec.yaml
 
       - name: Commit and Push
