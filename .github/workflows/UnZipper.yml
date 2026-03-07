@@ -1,0 +1,68 @@
+name: 3. Unzip Any Zip & Rewrite
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: "Enter full path to zip file (e.g. folder/sub/lib.zip or lib.zip for root)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+
+jobs:
+  unzip-and-replace:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify token exists
+        run: |
+          if [ -z "${{ secrets.ACCESS_TOKEN }}" ]; then
+            echo "ACCESS_TOKEN secret is missing"
+            exit 1
+          else
+            echo "Token detected"
+          fi
+
+      - name: Validate zip file exists
+        run: |
+          if [ ! -f "${{ github.event.inputs.zip_path }}" ]; then
+            echo "Zip file not found: ${{ github.event.inputs.zip_path }}"
+            exit 1
+          fi
+
+      - name: Preview zip contents
+        run: unzip -l "${{ github.event.inputs.zip_path }}"
+
+      - name: Get directory of zip
+        id: getdir
+        run: |
+          DIR=$(dirname "${{ github.event.inputs.zip_path }}")
+          echo "dir=$DIR" >> $GITHUB_OUTPUT
+
+      - name: Extract zip
+        run: |
+          unzip -o "${{ github.event.inputs.zip_path }}" -d "${{ steps.getdir.outputs.dir }}"
+
+      - name: Remove zip
+        run: rm "${{ github.event.inputs.zip_path }}"
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add -A
+          git commit -m "Extract ${{ github.event.inputs.zip_path }}" || echo "No changes"
+
+      - name: Push using fine-grained token
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        run: |
+          git remote set-url origin https://x-access-token:${ACCESS_TOKEN}@github.com/${{ github.repository }}.git
+          git push origin HEAD:main
