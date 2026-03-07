@@ -1,0 +1,73 @@
+name: 1. Setup Flutter App
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "App Name (shown on device)"
+        required: true
+        default: "My Flutter App"
+
+      package_name:
+        description: "Android Package Name (e.g. com.example.myapp)"
+        required: true
+        default: "com.example.myapp"
+
+      pubspec_description:
+        description: "Description in pubspec.yaml"
+        required: true
+        default: "A new Flutter project."
+
+permissions:
+  contents: write
+
+jobs:
+  init-project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.0"
+          channel: stable
+
+      - name: Prepare Variables
+        run: |
+          PACKAGE="${{ github.event.inputs.package_name }}"
+          APPNAME="${{ github.event.inputs.app_name }}"
+          DESC="${{ github.event.inputs.pubspec_description }}"
+
+          # Convert package name to dart project name (dots -> underscores)
+          PROJECT=$(echo "$PACKAGE" | sed 's/\./_/g')
+
+          echo "PACKAGE=$PACKAGE" >> $GITHUB_ENV
+          echo "APPNAME=$APPNAME" >> $GITHUB_ENV
+          echo "DESC=$DESC" >> $GITHUB_ENV
+          echo "PROJECT=$PROJECT" >> $GITHUB_ENV
+
+      - name: Create Flutter App
+        run: |
+          flutter create --org $PACKAGE --project-name $PROJECT .
+
+          rm -rf test/widget_test.dart
+
+      - name: Configure App Name and Pubspec
+        run: |
+          # Update Android app label
+          sed -i "s/android:label=\".*\"/android:label=\"$APPNAME\"/g" android/app/src/main/AndroidManifest.xml
+
+          # Update pubspec description
+          sed -i "s/^description:.*/description: $DESC/g" pubspec.yaml
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+          git add .
+          git commit -m "Initialize $APPNAME ($PACKAGE)"
+          git push
