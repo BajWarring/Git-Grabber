@@ -31,7 +31,7 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/kashly-release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/gitgrabber-release.keystore
 
       - name: Create key.properties
         run: |
@@ -156,6 +156,6 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Version | ${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Built at | ${{ steps.version.outputs.build_time }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Artifact | \`Kashly_${{ steps.version.outputs.tag }}_${{ steps.version.outputs.build_time }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact | \`GitGrabber_${{ steps.version.outputs.tag }}_${{ steps.version.outputs.build_time }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download the APK from the **Artifacts** section above ☝️" >> $GITHUB_STEP_SUMMARY
