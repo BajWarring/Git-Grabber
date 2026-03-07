@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:flutter_highlight/themes/github-dark-dimmed.dart';
+import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import '../app_theme.dart';
 import '../models/models.dart';
 
@@ -154,10 +153,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: AppColors.green.withOpacity(0.15),
+                              color: AppColors.green.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                  color: AppColors.green.withOpacity(0.3)),
+                                  color: AppColors.green.withValues(alpha: 0.3)),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
@@ -225,7 +224,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     ext.isNotEmpty ? ext.toUpperCase() : 'PLAIN',
                     style: TextStyle(
                         fontSize: 10,
-                        color: color.withOpacity(0.6),
+                        color: color.withValues(alpha: 0.6),
                         fontFamily: 'monospace'),
                   ),
                 ],
@@ -257,9 +256,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
 
     // Trimmed theme to avoid white background
-    final theme = Map<String, TextStyle>.from(githubDarkDimmedTheme);
-    theme['root'] =
-        const TextStyle(backgroundColor: Color(0xFF060910));
+    final theme = Map<String, TextStyle>.from(atomOneDarkTheme);
+    theme['root'] = const TextStyle(backgroundColor: Color(0xFF060910));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(4),
@@ -286,9 +284,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withOpacity(0.2)),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
             child: Icon(
               _fileIcon(ext),
@@ -356,7 +354,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
   }
 
   String _fmtBytes(int b) {
-    if (b < 1024) return '${b} B';
+    if (b < 1024) return '$b B';
     if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(1)} KB';
     return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
   }

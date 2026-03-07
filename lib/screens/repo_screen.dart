@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:archive/archive.dart';
@@ -22,7 +21,6 @@ class RepoScreen extends StatefulWidget {
 }
 
 class _RepoScreenState extends State<RepoScreen> {
-  late GitHubService _svc;
   List<TreeItem> _tree = [];
   List<String> _branches = [];
   String _currentBranch = '';
@@ -50,14 +48,8 @@ class _RepoScreenState extends State<RepoScreen> {
   void initState() {
     super.initState();
     _currentBranch = widget.info.defaultBranch;
-    _initService();
     _loadBranches();
     _loadTree(_currentBranch);
-  }
-
-  Future<void> _initService() async {
-    final token = await widget.storage.getActivePat();
-    _svc = GitHubService(token: token);
   }
 
   Future<void> _loadBranches() async {
@@ -397,7 +389,7 @@ class _RepoScreenState extends State<RepoScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.border),
                 ),
@@ -469,7 +461,7 @@ class _RepoScreenState extends State<RepoScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.blue.withOpacity(0.15),
+                color: AppColors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -605,15 +597,15 @@ class _RepoScreenState extends State<RepoScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
+                  color: color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: color.withOpacity(0.15)),
+                  border: Border.all(color: color.withValues(alpha: 0.15)),
                 ),
                 child: Text(
                   ext,
                   style: TextStyle(
                       fontSize: 9,
-                      color: color.withOpacity(0.7),
+                      color: color.withValues(alpha: 0.7),
                       fontFamily: 'monospace'),
                 ),
               ),
@@ -702,7 +694,7 @@ class _RepoScreenState extends State<RepoScreen> {
     final accentColor =
         _exportIsTxt ? AppColors.green : AppColors.blue;
     return Container(
-      color: Colors.black.withOpacity(0.85),
+      color: Colors.black.withValues(alpha: 0.85),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -716,7 +708,7 @@ class _RepoScreenState extends State<RepoScreen> {
                   child: CircularProgressIndicator(
                     value: _exportDone ? 1.0 : _exportProgress,
                     color: accentColor,
-                    backgroundColor: accentColor.withOpacity(0.1),
+                    backgroundColor: accentColor.withValues(alpha: 0.1),
                     strokeWidth: 2.5,
                   ),
                 ),
@@ -724,10 +716,10 @@ class _RepoScreenState extends State<RepoScreen> {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.15),
+                    color: accentColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: accentColor.withOpacity(0.3)),
+                        color: accentColor.withValues(alpha: 0.3)),
                   ),
                   child: Icon(
                     _exportDone
@@ -764,7 +756,7 @@ class _RepoScreenState extends State<RepoScreen> {
               width: 160,
               child: LinearProgressIndicator(
                 value: _exportDone ? 1.0 : _exportProgress,
-                backgroundColor: Colors.white.withOpacity(0.05),
+                backgroundColor: Colors.white.withValues(alpha: 0.05),
                 valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                 borderRadius: BorderRadius.circular(4),
                 minHeight: 4,
@@ -807,10 +799,10 @@ class _RepoScreenState extends State<RepoScreen> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.red.withOpacity(0.1),
+                color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: AppColors.red.withOpacity(0.2)),
+                    color: AppColors.red.withValues(alpha: 0.2)),
               ),
               child: const Icon(Icons.warning_amber_rounded,
                   color: AppColors.red, size: 26),
@@ -830,7 +822,7 @@ class _RepoScreenState extends State<RepoScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.blue,
                 side: BorderSide(
-                    color: AppColors.blue.withOpacity(0.3)),
+                    color: AppColors.blue.withValues(alpha: 0.3)),
               ),
             ),
           ],
@@ -891,7 +883,7 @@ class _RepoScreenState extends State<RepoScreen> {
   }
 
   String _fmtBytes(int b) {
-    if (b < 1024) return '${b}B';
+    if (b < 1024) return '$bB';
     if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(1)}KB';
     return '${(b / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
@@ -922,7 +914,7 @@ class _BranchChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.border),
         ),
@@ -1013,12 +1005,12 @@ class _BranchSheet extends StatelessWidget {
                         horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? AppColors.blue.withOpacity(0.1)
-                          : Colors.white.withOpacity(0.02),
+                          ? AppColors.blue.withValues(alpha: 0.1)
+                          : Colors.white.withValues(alpha: 0.02),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isActive
-                            ? AppColors.blue.withOpacity(0.3)
+                            ? AppColors.blue.withValues(alpha: 0.3)
                             : AppColors.border,
                       ),
                     ),
@@ -1076,7 +1068,7 @@ class _Checkbox extends StatelessWidget {
         color: isChecked
             ? AppColors.blue
             : isIndet
-                ? AppColors.blue.withOpacity(0.4)
+                ? AppColors.blue.withValues(alpha: 0.4)
                 : Colors.transparent,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
@@ -1114,7 +1106,7 @@ class _ToolChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: AppColors.border),
         ),

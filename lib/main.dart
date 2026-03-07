@@ -9,8 +9,6 @@ void main() async {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      navigationBarColor: Color(0xFF0D1117),
-      navigationBarIconBrightness: Brightness.light,
     ),
   );
   runApp(const GitGlanceApp());

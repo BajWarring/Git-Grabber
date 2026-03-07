@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../app_theme.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
@@ -126,13 +125,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               width: 300,
               height: 300,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.blue.withOpacity(0.06),
-              ),
-              child: BackdropFilter(
-                filter: const ImageFilter.blur(sigmaX: 80, sigmaY: 80) as dynamic,
-                child: const SizedBox.expand(),
+                color: Color(0x0F3B82F6),
               ),
             ),
           ),
@@ -182,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.blue.withOpacity(0.3),
+                  color: AppColors.blue.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -295,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 11,
               color: _activePatLabel != null
-                  ? AppColors.green.withOpacity(0.7)
+                  ? AppColors.green.withValues(alpha: 0.7)
                   : AppColors.textMuted,
             ),
           ),
@@ -331,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.border),
               ),
@@ -470,7 +465,7 @@ class _RepoCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.white.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
@@ -578,13 +573,13 @@ class _Tag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 9, color: color.withOpacity(0.8)),
+        style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8)),
       ),
     );
   }
@@ -611,12 +606,12 @@ class _ChipButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.blue.withOpacity(0.15)
-              : Colors.white.withOpacity(0.04),
+              ? AppColors.blue.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: active
-                ? AppColors.blue.withOpacity(0.3)
+                ? AppColors.blue.withValues(alpha: 0.3)
                 : AppColors.border,
           ),
         ),
@@ -664,7 +659,7 @@ class _SearchButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: AppColors.blue.withOpacity(0.25),
+              color: AppColors.blue.withValues(alpha: 0.25),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -773,7 +768,7 @@ class _PatSheetState extends State<_PatSheet> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
             ),
@@ -917,12 +912,12 @@ class _PatTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isActive
-              ? AppColors.blue.withOpacity(0.1)
-              : Colors.white.withOpacity(0.02),
+              ? AppColors.blue.withValues(alpha: 0.1)
+              : Colors.white.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isActive
-                ? AppColors.blue.withOpacity(0.3)
+                ? AppColors.blue.withValues(alpha: 0.3)
                 : AppColors.border,
           ),
         ),
@@ -965,7 +960,7 @@ class _PatTile extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.blue.withOpacity(0.15),
+                  color: AppColors.blue.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(

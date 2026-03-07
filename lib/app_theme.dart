@@ -70,8 +70,6 @@ ThemeData buildTheme() {
     colorScheme: const ColorScheme.dark(
       primary: AppColors.blue,
       surface: AppColors.panel,
-      background: AppColors.surface,
-      onBackground: AppColors.textBase,
       onSurface: AppColors.textBase,
     ),
     scaffoldBackgroundColor: AppColors.surface,
@@ -85,9 +83,8 @@ ThemeData buildTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white.withOpacity(0.04),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      fillColor: const Color(0x0AFFFFFF),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.border),
@@ -98,8 +95,7 @@ ThemeData buildTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide:
-            const BorderSide(color: Color(0x663B82F6)),
+        borderSide: const BorderSide(color: Color(0x663B82F6)),
       ),
       hintStyle: const TextStyle(color: AppColors.textMuted),
     ),
@@ -111,8 +107,8 @@ ThemeData buildTheme() {
       bodyLarge: TextStyle(color: AppColors.textBase),
       bodyMedium: TextStyle(color: AppColors.textBase),
       bodySmall: TextStyle(color: AppColors.textDim),
-      labelLarge: TextStyle(
-          color: AppColors.textStrong, fontWeight: FontWeight.w500),
+      labelLarge:
+          TextStyle(color: AppColors.textStrong, fontWeight: FontWeight.w500),
     ),
   );
 }
@@ -126,7 +122,7 @@ BoxDecoration get cardDecoration => BoxDecoration(
     );
 
 BoxDecoration glowDecoration(Color color) => BoxDecoration(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: color.withOpacity(0.3)),
+      border: Border.all(color: color.withValues(alpha: 0.3)),
     );
