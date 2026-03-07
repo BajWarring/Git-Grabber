@@ -111,6 +111,14 @@ jobs:
       # -----------------------------
       # Locate Apk
       # -----------------------------
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+         name: build-log
+         path: build.log
+         retention-days: 3
       
       - name: Locate APK
         if: always()
