@@ -38,7 +38,7 @@ jobs:
           echo "storePassword=${{ secrets.STORE_PASSWORD }}" > android/key.properties
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
-          echo "storeFile=kashly-release.keystore" >> android/key.properties
+          echo "storeFile=gitgrabber-release.keystore" >> android/key.properties
 
       # -----------------------------
       # Resolve version for artifact name
