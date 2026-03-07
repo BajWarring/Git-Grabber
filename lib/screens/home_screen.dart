@@ -304,10 +304,10 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text(
                 'Deactivate',
                 style: const TextStyle(
-  fontSize: 11,
-  color: AppColors.textDim,
-  decoration: TextDecoration.underline,
-  decorationColor: AppColors.textDim,
+                  fontSize: 11,
+                  color: AppColors.textDim,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textDim,
                 ),
               ),
             ),
