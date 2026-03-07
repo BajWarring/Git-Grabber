@@ -22,9 +22,6 @@
     <!-- Code -->
     <color name="code_text">#c9d1d9</color>
 
-    <!-- Checkbox -->
-    <color name="checkbox_tint">#3b82f6</color>
-
     <!-- Material required -->
     <color name="colorPrimary">#3b82f6</color>
     <color name="colorOnPrimary">#ffffff</color>
