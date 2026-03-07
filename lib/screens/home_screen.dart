@@ -303,11 +303,11 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: Text(
                 'Deactivate',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textDim,
-                  decoration: TextDecoration.underline,
-                  decorationColor: AppColors.textDim,
+                style: const TextStyle(
+  fontSize: 11,
+  color: AppColors.textDim,
+  decoration: TextDecoration.underline,
+  decorationColor: AppColors.textDim,
                 ),
               ),
             ),
@@ -377,7 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
-                    builder: (_) => _ConfirmDialog(
+                    builder: (_) => const _ConfirmDialog(
                       title: 'Clear history?',
                       message: 'This will remove all saved repos.',
                     ),
