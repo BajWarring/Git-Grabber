@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keyProps = Properties()
+val keyPropsFile = rootProject.file("key.properties")
+if (keyPropsFile.exists()) {
+    keyPropsFile.inputStream().use { keyProps.load(it) }
 }
 
 android {
@@ -30,21 +38,23 @@ android {
 
     signingConfigs {
         create("release") {
-        val props = java.util.Properties()
-        rootProject.file("key.properties").inputStream().use { props.load(it) }
-        storeFile = file(props["storeFile"] as String)
-        storePassword = props["storePassword"] as String
-        keyAlias = props["keyAlias"] as String
-        keyPassword = props["keyPassword"] as String
+            storeFile = if (keyPropsFile.exists()) file(keyProps["storeFile"] as String) else null
+            storePassword = keyProps["storePassword"] as String? ?: ""
+            keyAlias = keyProps["keyAlias"] as String? ?: ""
+            keyPassword = keyProps["keyPassword"] as String? ?: ""
         }
-     }
+    }
 
-      buildTypes {
-       release {
-       signingConfig = signingConfigs.getByName("release")
-       }
-     }
-   }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+}
 
 flutter {
     source = "../.."
