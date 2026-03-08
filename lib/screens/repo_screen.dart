@@ -21,28 +21,25 @@ class RepoScreen extends StatefulWidget {
 }
 
 class _RepoScreenState extends State<RepoScreen> {
-  List<TreeItem> _tree = [];
-  List<String> _branches = [];
-  String _currentBranch = '';
-  bool _loading = true;
-  bool _truncated = false;
-  String _status = '';
-  String _errorMsg = '';
+  List<TreeItem> _tree     = [];
+  List<String>   _branches = [];
+  String         _currentBranch = '';
+  bool           _loading  = true;
+  bool           _truncated = false;
+  String         _status   = '';
+  String         _errorMsg = '';
 
-  // Virtual tree + flat visible list
-  TreeNode? _rootNode;
-  List<VisibleNode> _visible = [];
+  TreeNode?           _rootNode;
+  List<VisibleNode>   _visible = [];
 
-  // File content cache
   final Map<String, String> _contentCache = {};
 
-  // Export state
-  bool _exporting = false;
+  bool   _exporting      = false;
   double _exportProgress = 0;
-  String _exportFile = '';
-  String _exportTitle = '';
-  bool _exportDone = false;
-  bool _exportIsTxt = false;
+  String _exportFile     = '';
+  String _exportTitle    = '';
+  bool   _exportDone     = false;
+  bool   _exportIsTxt    = false;
 
   @override
   void initState() {
@@ -50,31 +47,40 @@ class _RepoScreenState extends State<RepoScreen> {
     _currentBranch = widget.info.defaultBranch;
     _loadBranches();
     _loadTree(_currentBranch);
+    themeModeNotifier.addListener(_onThemeChange);
   }
+
+  @override
+  void dispose() {
+    themeModeNotifier.removeListener(_onThemeChange);
+    super.dispose();
+  }
+
+  void _onThemeChange() => setState(() {});
 
   Future<void> _loadBranches() async {
     final token = await widget.storage.getActivePat();
-    final svc = GitHubService(token: token);
-    final branches = await svc.fetchBranches(
-        widget.info.owner, widget.info.name);
+    final svc   = GitHubService(token: token);
+    final branches =
+        await svc.fetchBranches(widget.info.owner, widget.info.name);
     if (mounted) setState(() => _branches = branches);
   }
 
   Future<void> _loadTree(String branch) async {
     setState(() {
-      _loading = true;
+      _loading  = true;
       _errorMsg = '';
-      _status = 'Loading $branch...';
+      _status   = 'Loading $branch…';
     });
 
     try {
       final token = await widget.storage.getActivePat();
-      final svc = GitHubService(token: token);
+      final svc   = GitHubService(token: token);
       final result = await svc.fetchTree(
           widget.info.owner, widget.info.name, branch);
 
-      _tree = result.items;
-      _truncated = result.truncated;
+      _tree          = result.items;
+      _truncated     = result.truncated;
       _currentBranch = branch;
       _contentCache.clear();
 
@@ -83,20 +89,22 @@ class _RepoScreenState extends State<RepoScreen> {
       final fileCount = _tree.where((i) => i.isFile).length;
       setState(() {
         _loading = false;
-        _status = '$fileCount files${_truncated ? ' (truncated)' : ''}';
+        _status  =
+            '$fileCount files${_truncated ? ' (truncated)' : ''}';
       });
     } catch (e) {
       if (mounted) {
         setState(() {
-          _loading = false;
-          _errorMsg = e.toString().replaceFirst('Exception: ', '');
-          _status = 'Error';
+          _loading  = false;
+          _errorMsg =
+              e.toString().replaceFirst('Exception: ', '');
+          _status   = 'Error';
         });
       }
     }
   }
 
-  // ─── Build virtual tree structure ────────────────────────────────────────
+  // ─── Virtual tree ─────────────────────────────────────────────────────────
 
   void _buildVirtualTree() {
     final root = TreeNode(name: '', path: '', isDir: true);
@@ -104,14 +112,14 @@ class _RepoScreenState extends State<RepoScreen> {
       final parts = item.path.split('/');
       TreeNode cur = root;
       for (int i = 0; i < parts.length; i++) {
-        final part = parts[i];
+        final part  = parts[i];
+        final isLast = i == parts.length - 1;
         if (!cur.children.containsKey(part)) {
-          final isLast = i == parts.length - 1;
           cur.children[part] = TreeNode(
-            name: part,
-            path: item.path,
+            name:  part,
+            path:  item.path,
             isDir: !isLast || item.isDir,
-            item: isLast && item.isFile ? item : null,
+            item:  isLast && item.isFile ? item : null,
           );
         }
         cur = cur.children[part]!;
@@ -124,7 +132,6 @@ class _RepoScreenState extends State<RepoScreen> {
   void _rebuildVisible() {
     final list = <VisibleNode>[];
     void visit(TreeNode node, int depth) {
-      // Sort: dirs first, then alpha
       final sorted = node.children.entries.toList()
         ..sort((a, b) {
           final da = a.value.isDir ? 0 : 1;
@@ -134,12 +141,9 @@ class _RepoScreenState extends State<RepoScreen> {
         });
       for (final e in sorted) {
         list.add(VisibleNode(node: e.value, depth: depth));
-        if (e.value.isDir && e.value.isExpanded) {
-          visit(e.value, depth + 1);
-        }
+        if (e.value.isDir && e.value.isExpanded) visit(e.value, depth + 1);
       }
     }
-
     if (_rootNode != null) visit(_rootNode!, 0);
     setState(() => _visible = list);
   }
@@ -149,44 +153,118 @@ class _RepoScreenState extends State<RepoScreen> {
     _rebuildVisible();
   }
 
-  // ─── Selection ───────────────────────────────────────────────────────────
+  // ─── Selection ────────────────────────────────────────────────────────────
 
   void _setChecked(TreeNode node, bool val) {
-    if (node.item != null) {
-      _tree[node.item!.idx].checked = val;
-    }
-    for (final child in node.children.values) {
-      _setChecked(child, val);
-    }
+    if (node.item != null) _tree[node.item!.idx].checked = val;
+    for (final child in node.children.values) _setChecked(child, val);
   }
 
   void _toggleAll(bool val) {
-    for (final item in _tree) {
-      item.checked = val;
-    }
-    if (_rootNode != null) _setAllChecks(_rootNode!, val);
+    for (final item in _tree) item.checked = val;
     setState(() {});
   }
 
-  void _setAllChecks(TreeNode node, bool val) {
-    for (final child in node.children.values) {
-      _setAllChecks(child, val);
-    }
-  }
+  int get _selectedCount =>
+      _tree.where((i) => i.isFile && i.checked).length;
 
-  int get _selectedCount => _tree.where((i) => i.isFile && i.checked).length;
-
-  // ─── Fetch content (cached) ───────────────────────────────────────────────
+  // ─── Content (cached) ─────────────────────────────────────────────────────
 
   Future<String> _fetchContent(TreeItem file) async {
-    if (_contentCache.containsKey(file.sha)) {
-      return _contentCache[file.sha]!;
-    }
-    final token = await widget.storage.getActivePat();
-    final svc = GitHubService(token: token);
+    if (_contentCache.containsKey(file.sha)) return _contentCache[file.sha]!;
+    final token   = await widget.storage.getActivePat();
+    final svc     = GitHubService(token: token);
     final content = await svc.fetchFileContent(file);
     _contentCache[file.sha] = content;
     return content;
+  }
+
+  // ─── Rename dialog ────────────────────────────────────────────────────────
+
+  /// Shows a dialog asking the user to confirm / change the export filename.
+  /// Returns the final name (without extension) or `null` if cancelled.
+  Future<String?> _showRenameDialog({
+    required String defaultName,
+    required bool isTxt,
+  }) async {
+    final ctrl = TextEditingController(text: defaultName);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              isTxt
+                  ? Icons.description_rounded
+                  : Icons.folder_zip_rounded,
+              color: isTxt ? AppColors.green : AppColors.blue,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Save as…',
+              style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rename the file before saving:',
+              style: TextStyle(
+                  color: AppColors.textDim, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontSize: 13,
+                  fontFamily: 'monospace'),
+              decoration: InputDecoration(
+                suffixText: isTxt ? '.txt' : '.zip',
+                suffixStyle:
+                    TextStyle(color: AppColors.textDim, fontSize: 12),
+                hintText: 'filename',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child:
+                Text('Cancel', style: TextStyle(color: AppColors.textDim)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = ctrl.text.trim();
+              if (name.isNotEmpty) Navigator.pop(ctx, name);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isTxt ? AppColors.green : AppColors.blue,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Export',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── Export ZIP ───────────────────────────────────────────────────────────
@@ -197,7 +275,14 @@ class _RepoScreenState extends State<RepoScreen> {
       _showSnack('No files selected. Use checkboxes to select files.');
       return;
     }
-    _startExport(selected.length, false);
+
+    final defaultName =
+        '${widget.info.name}_$_currentBranch';
+    final fileName = await _showRenameDialog(
+        defaultName: defaultName, isTxt: false);
+    if (fileName == null) return; // user cancelled
+
+    _startExport(selected.length, false, fileName);
 
     try {
       final archive = Archive();
@@ -205,22 +290,21 @@ class _RepoScreenState extends State<RepoScreen> {
         final file = selected[i];
         setState(() {
           _exportProgress = i / selected.length;
-          _exportFile = file.displayName;
+          _exportFile     = file.displayName;
         });
         final content = await _fetchContent(file);
-        final bytes = utf8.encode(content);
+        final bytes   = utf8.encode(content);
         archive.addFile(ArchiveFile(file.path, bytes.length, bytes));
       }
 
       setState(() {
         _exportProgress = 1.0;
-        _exportFile = '';
+        _exportFile     = '';
       });
 
       final zipData = ZipEncoder().encode(archive)!;
-      final dir = await getTemporaryDirectory();
-      final outFile =
-          File('${dir.path}/${widget.info.name}_$_currentBranch.zip');
+      final dir     = await getTemporaryDirectory();
+      final outFile = File('${dir.path}/$fileName.zip');
       await outFile.writeAsBytes(zipData);
 
       setState(() => _exportDone = true);
@@ -229,7 +313,7 @@ class _RepoScreenState extends State<RepoScreen> {
       if (mounted) {
         await Share.shareXFiles(
           [XFile(outFile.path, mimeType: 'application/zip')],
-          subject: '${widget.info.name}.zip',
+          subject: '$fileName.zip',
         );
       }
     } catch (e) {
@@ -247,7 +331,14 @@ class _RepoScreenState extends State<RepoScreen> {
       _showSnack('No files selected. Use checkboxes to select files.');
       return;
     }
-    _startExport(selected.length, true);
+
+    final defaultName =
+        '${widget.info.name}_$_currentBranch';
+    final fileName = await _showRenameDialog(
+        defaultName: defaultName, isTxt: true);
+    if (fileName == null) return; // user cancelled
+
+    _startExport(selected.length, true, fileName);
 
     try {
       const sep = '====================';
@@ -255,9 +346,7 @@ class _RepoScreenState extends State<RepoScreen> {
 
       lines.add('FILE STRUCTURE');
       lines.add(sep);
-      for (final f in selected) {
-        lines.add(f.path);
-      }
+      for (final f in selected) lines.add(f.path);
       lines.add('');
       lines.add('');
 
@@ -265,7 +354,7 @@ class _RepoScreenState extends State<RepoScreen> {
         final file = selected[i];
         setState(() {
           _exportProgress = i / selected.length;
-          _exportFile = file.displayName;
+          _exportFile     = file.displayName;
         });
         final content = await _fetchContent(file);
         lines.add(sep);
@@ -279,21 +368,20 @@ class _RepoScreenState extends State<RepoScreen> {
 
       setState(() {
         _exportProgress = 1.0;
-        _exportFile = '';
-        _exportDone = true;
+        _exportFile     = '';
+        _exportDone     = true;
       });
 
       await Future.delayed(const Duration(milliseconds: 800));
 
-      final dir = await getTemporaryDirectory();
-      final outFile =
-          File('${dir.path}/${widget.info.name}_$_currentBranch.txt');
+      final dir     = await getTemporaryDirectory();
+      final outFile = File('${dir.path}/$fileName.txt');
       await outFile.writeAsString(lines.join('\n'));
 
       if (mounted) {
         await Share.shareXFiles(
           [XFile(outFile.path, mimeType: 'text/plain')],
-          subject: '${widget.info.name}.txt',
+          subject: '$fileName.txt',
         );
       }
     } catch (e) {
@@ -303,19 +391,19 @@ class _RepoScreenState extends State<RepoScreen> {
     }
   }
 
-  void _startExport(int total, bool isTxt) {
+  void _startExport(int total, bool isTxt, String fileName) {
     setState(() {
-      _exporting = true;
+      _exporting      = true;
       _exportProgress = 0;
-      _exportFile = '';
-      _exportDone = false;
-      _exportIsTxt = isTxt;
-      _exportTitle =
-          '${isTxt ? 'Building .txt' : 'Packing'} $total file${total != 1 ? 's' : ''}';
+      _exportFile     = '';
+      _exportDone     = false;
+      _exportIsTxt    = isTxt;
+      _exportTitle    =
+          '${isTxt ? 'Building' : 'Packing'} $total file${total != 1 ? 's' : ''} → $fileName${isTxt ? '.txt' : '.zip'}';
     });
   }
 
-  // ─── UI ──────────────────────────────────────────────────────────────────
+  // ─── UI ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -343,14 +431,14 @@ class _RepoScreenState extends State<RepoScreen> {
       child: Container(
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.panel,
           border: Border(bottom: BorderSide(color: AppColors.border)),
         ),
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.arrow_back_rounded,
+              icon: Icon(Icons.arrow_back_rounded,
                   color: AppColors.textBase, size: 20),
               onPressed: () => Navigator.pop(context),
             ),
@@ -360,50 +448,41 @@ class _RepoScreenState extends State<RepoScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.info.name,
-                    style: const TextStyle(
-                      color: AppColors.textStrong,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  Text(
-                    widget.info.owner,
-                    style: const TextStyle(
-                        color: AppColors.textDim, fontSize: 11),
-                  ),
+                  Text(widget.info.name,
+                      style: TextStyle(
+                          color: AppColors.textStrong,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'monospace')),
+                  Text(widget.info.owner,
+                      style: TextStyle(
+                          color: AppColors.textDim, fontSize: 11)),
                 ],
               ),
             ),
-            // Branch selector
             if (_branches.isNotEmpty)
               _BranchChip(
-                branches: _branches,
-                current: _currentBranch,
-                onChanged: (b) => _loadTree(b),
-              )
+                  branches: _branches,
+                  current: _currentBranch,
+                  onChanged: _loadTree)
             else
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.merge_type_rounded,
+                    Icon(Icons.merge_type_rounded,
                         size: 12, color: AppColors.textDim),
                     const SizedBox(width: 4),
-                    Text(
-                      _currentBranch,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textDim),
-                    ),
+                    Text(_currentBranch,
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textDim)),
                   ],
                 ),
               ),
@@ -418,13 +497,12 @@ class _RepoScreenState extends State<RepoScreen> {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.panel,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
-          // Status indicator
           Container(
             width: 6,
             height: 6,
@@ -438,23 +516,19 @@ class _RepoScreenState extends State<RepoScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            _status,
-            style:
-                const TextStyle(fontSize: 11, color: AppColors.textDim),
-          ),
+          Text(_status,
+              style: TextStyle(
+                  fontSize: 11, color: AppColors.textDim)),
           const Spacer(),
           _ToolChip(
-            label: 'All',
-            icon: Icons.check_box_rounded,
-            onTap: () => _toggleAll(true),
-          ),
+              label: 'All',
+              icon: Icons.check_box_rounded,
+              onTap: () => _toggleAll(true)),
           const SizedBox(width: 6),
           _ToolChip(
-            label: 'None',
-            icon: Icons.check_box_outline_blank_rounded,
-            onTap: () => _toggleAll(false),
-          ),
+              label: 'None',
+              icon: Icons.check_box_outline_blank_rounded,
+              onTap: () => _toggleAll(false)),
           if (_selectedCount > 0) ...[
             const SizedBox(width: 8),
             Container(
@@ -464,11 +538,9 @@ class _RepoScreenState extends State<RepoScreen> {
                 color: AppColors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(
-                '$_selectedCount',
-                style: const TextStyle(
-                    color: AppColors.blue, fontSize: 10),
-              ),
+              child: Text('$_selectedCount',
+                  style: const TextStyle(
+                      color: AppColors.blue, fontSize: 10)),
             ),
           ],
         ],
@@ -480,10 +552,9 @@ class _RepoScreenState extends State<RepoScreen> {
     if (_loading) return _buildSkeleton();
     if (_errorMsg.isNotEmpty) return _buildError();
     if (_visible.isEmpty) {
-      return const Center(
-        child: Text('No files found',
-            style: TextStyle(color: AppColors.textDim)),
-      );
+      return Center(
+          child: Text('No files found',
+              style: TextStyle(color: AppColors.textDim)));
     }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
@@ -493,24 +564,17 @@ class _RepoScreenState extends State<RepoScreen> {
   }
 
   Widget _buildTreeRow(VisibleNode vn) {
-    final node = vn.node;
+    final node  = vn.node;
     final isDir = node.isDir;
-    final item = node.item;
-    final ext = node.ext;
+    final item  = node.item;
+    final ext   = node.ext;
     final color = isDir ? AppColors.yellow : extColor(ext);
 
-    // Determine checked state
     bool? checkVal;
     if (isDir) {
       final all = _allFilesInNode(node);
-      final checkedCount = all.where((i) => i.checked).length;
-      if (checkedCount == 0) {
-        checkVal = false;
-      } else if (checkedCount == all.length) {
-        checkVal = true;
-      } else {
-        checkVal = null; // indeterminate
-      }
+      final cnt = all.where((i) => i.checked).length;
+      checkVal = cnt == 0 ? false : cnt == all.length ? true : null;
     } else {
       checkVal = item?.checked ?? false;
     }
@@ -537,21 +601,18 @@ class _RepoScreenState extends State<RepoScreen> {
         ),
         child: Row(
           children: [
-            // Folder caret
             SizedBox(
               width: 14,
               child: isDir
                   ? AnimatedRotation(
                       turns: node.isExpanded ? 0.25 : 0,
                       duration: const Duration(milliseconds: 150),
-                      child: const Icon(Icons.chevron_right_rounded,
+                      child: Icon(Icons.chevron_right_rounded,
                           size: 14, color: AppColors.textDim),
                     )
                   : const SizedBox.shrink(),
             ),
             const SizedBox(width: 4),
-
-            // Checkbox
             GestureDetector(
               onTap: () {
                 final newVal = checkVal != true;
@@ -565,8 +626,6 @@ class _RepoScreenState extends State<RepoScreen> {
               child: _Checkbox(value: checkVal),
             ),
             const SizedBox(width: 8),
-
-            // Icon
             Icon(
               isDir
                   ? (node.isExpanded
@@ -577,46 +636,39 @@ class _RepoScreenState extends State<RepoScreen> {
               color: color,
             ),
             const SizedBox(width: 7),
-
-            // Name
             Expanded(
               child: Text(
                 node.name,
-                style: const TextStyle(
-                  color: AppColors.textBase,
-                  fontSize: 12.5,
-                  fontFamily: 'monospace',
-                ),
+                style: TextStyle(
+                    color: AppColors.textBase,
+                    fontSize: 12.5,
+                    fontFamily: 'monospace'),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-
-            // Ext badge (files only)
             if (!isDir && ext.isNotEmpty)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: color.withValues(alpha: 0.15)),
+                  border:
+                      Border.all(color: color.withValues(alpha: 0.15)),
                 ),
-                child: Text(
-                  ext,
-                  style: TextStyle(
-                      fontSize: 9,
-                      color: color.withValues(alpha: 0.7),
-                      fontFamily: 'monospace'),
-                ),
+                child: Text(ext,
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: color.withValues(alpha: 0.7),
+                        fontFamily: 'monospace')),
               ),
             if (!isDir && item != null && item.size > 0) ...[
               const SizedBox(width: 6),
-              Text(
-                _fmtBytes(item.size),
-                style: const TextStyle(
-                    fontSize: 9, color: AppColors.textMuted,
-                    fontFamily: 'monospace'),
-              ),
+              Text(_fmtBytes(item.size),
+                  style: TextStyle(
+                      fontSize: 9,
+                      color: AppColors.textMuted,
+                      fontFamily: 'monospace')),
             ],
           ],
         ),
@@ -636,7 +688,7 @@ class _RepoScreenState extends State<RepoScreen> {
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.panel,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
@@ -649,11 +701,10 @@ class _RepoScreenState extends State<RepoScreen> {
                 onPressed: _exportZip,
                 icon: const Icon(Icons.folder_zip_rounded, size: 16),
                 label: Text(
-                  '.zip${_selectedCount > 0 ? ' ($_selectedCount)' : ''}',
-                ),
+                    '.zip${_selectedCount > 0 ? ' ($_selectedCount)' : ''}'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
+                  backgroundColor: AppColors.textStrong,
+                  foregroundColor: AppColors.surface,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -669,11 +720,10 @@ class _RepoScreenState extends State<RepoScreen> {
                 onPressed: _exportTxt,
                 icon: const Icon(Icons.description_rounded, size: 16),
                 label: Text(
-                  '.txt${_selectedCount > 0 ? ' ($_selectedCount)' : ''}',
-                ),
+                    '.txt${_selectedCount > 0 ? ' ($_selectedCount)' : ''}'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textBase,
-                  side: const BorderSide(color: AppColors.borderLight),
+                  side: BorderSide(color: AppColors.borderLight),
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -727,7 +777,8 @@ class _RepoScreenState extends State<RepoScreen> {
                         : (_exportIsTxt
                             ? Icons.description_rounded
                             : Icons.folder_zip_rounded),
-                    color: _exportDone ? AppColors.green : accentColor,
+                    color:
+                        _exportDone ? AppColors.green : accentColor,
                     size: 24,
                   ),
                 ),
@@ -736,19 +787,19 @@ class _RepoScreenState extends State<RepoScreen> {
             const SizedBox(height: 24),
             Text(
               _exportDone ? 'Ready!' : _exportTitle,
-              style: const TextStyle(
-                color: AppColors.textStrong,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 6),
             Text(
               _exportFile.isEmpty
                   ? '${(_exportProgress * 100).toInt()}%'
                   : _exportFile,
-              style: const TextStyle(
-                  color: AppColors.textDim, fontSize: 12,
+              style: TextStyle(
+                  color: AppColors.textDim,
+                  fontSize: 12,
                   fontFamily: 'monospace'),
             ),
             const SizedBox(height: 20),
@@ -756,8 +807,10 @@ class _RepoScreenState extends State<RepoScreen> {
               width: 160,
               child: LinearProgressIndicator(
                 value: _exportDone ? 1.0 : _exportProgress,
-                backgroundColor: Colors.white.withValues(alpha: 0.05),
-                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                backgroundColor:
+                    Colors.white.withValues(alpha: 0.05),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(accentColor),
                 borderRadius: BorderRadius.circular(4),
                 minHeight: 4,
               ),
@@ -768,7 +821,7 @@ class _RepoScreenState extends State<RepoScreen> {
     );
   }
 
-  // ─── Skeleton ─────────────────────────────────────────────────────────────
+  // ─── Skeleton / Error ─────────────────────────────────────────────────────
 
   Widget _buildSkeleton() {
     return ListView.builder(
@@ -776,8 +829,7 @@ class _RepoScreenState extends State<RepoScreen> {
       itemCount: 12,
       itemBuilder: (_, i) => Container(
         height: 32,
-        margin: EdgeInsets.only(
-            left: (i % 3) * 16.0, bottom: 6),
+        margin: EdgeInsets.only(left: (i % 3) * 16.0, bottom: 6),
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(8),
@@ -785,8 +837,6 @@ class _RepoScreenState extends State<RepoScreen> {
       ),
     );
   }
-
-  // ─── Error ────────────────────────────────────────────────────────────────
 
   Widget _buildError() {
     return Center(
@@ -808,12 +858,10 @@ class _RepoScreenState extends State<RepoScreen> {
                   color: AppColors.red, size: 26),
             ),
             const SizedBox(height: 16),
-            Text(
-              _errorMsg,
-              style: const TextStyle(
-                  color: AppColors.textBase, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
+            Text(_errorMsg,
+                style: TextStyle(
+                    color: AppColors.textBase, fontSize: 13),
+                textAlign: TextAlign.center),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: () => _loadTree(_currentBranch),
@@ -837,10 +885,8 @@ class _RepoScreenState extends State<RepoScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PreviewScreen(
-          item: item,
-          fetchContent: _fetchContent,
-        ),
+        builder: (_) =>
+            PreviewScreen(item: item, fetchContent: _fetchContent),
       ),
     );
   }
@@ -860,24 +906,15 @@ class _RepoScreenState extends State<RepoScreen> {
 
   IconData _fileIcon(String ext) {
     const map = {
-      'dart': Icons.flutter_dash,
-      'js': Icons.javascript_rounded,
-      'ts': Icons.code_rounded,
-      'py': Icons.code_rounded,
-      'kt': Icons.android_rounded,
-      'md': Icons.article_rounded,
-      'json': Icons.data_object_rounded,
-      'html': Icons.html_rounded,
-      'css': Icons.css_rounded,
-      'xml': Icons.code_rounded,
-      'yaml': Icons.settings_rounded,
-      'yml': Icons.settings_rounded,
-      'sh': Icons.terminal_rounded,
-      'png': Icons.image_rounded,
-      'jpg': Icons.image_rounded,
-      'jpeg': Icons.image_rounded,
-      'svg': Icons.image_rounded,
-      'pdf': Icons.picture_as_pdf_rounded,
+      'dart': Icons.flutter_dash,       'js':   Icons.javascript_rounded,
+      'ts':   Icons.code_rounded,       'py':   Icons.code_rounded,
+      'kt':   Icons.android_rounded,    'md':   Icons.article_rounded,
+      'json': Icons.data_object_rounded,'html': Icons.html_rounded,
+      'css':  Icons.css_rounded,        'xml':  Icons.code_rounded,
+      'yaml': Icons.settings_rounded,   'yml':  Icons.settings_rounded,
+      'sh':   Icons.terminal_rounded,   'png':  Icons.image_rounded,
+      'jpg':  Icons.image_rounded,      'jpeg': Icons.image_rounded,
+      'svg':  Icons.image_rounded,      'pdf':  Icons.picture_as_pdf_rounded,
     };
     return map[ext] ?? Icons.insert_drive_file_rounded;
   }
@@ -896,11 +933,10 @@ class _BranchChip extends StatelessWidget {
   final String current;
   final ValueChanged<String> onChanged;
 
-  const _BranchChip({
-    required this.branches,
-    required this.current,
-    required this.onChanged,
-  });
+  const _BranchChip(
+      {required this.branches,
+      required this.current,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -912,29 +948,28 @@ class _BranchChip extends StatelessWidget {
             branches: branches, current: current, onChanged: onChanged),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.merge_type_rounded,
+            Icon(Icons.merge_type_rounded,
                 size: 12, color: AppColors.textDim),
             const SizedBox(width: 4),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 80),
-              child: Text(
-                current,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.textDim),
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(current,
+                  style: TextStyle(
+                      fontSize: 11, color: AppColors.textDim),
+                  overflow: TextOverflow.ellipsis),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.expand_more_rounded,
+            Icon(Icons.expand_more_rounded,
                 size: 12, color: AppColors.textMuted),
           ],
         ),
@@ -948,19 +983,19 @@ class _BranchSheet extends StatelessWidget {
   final String current;
   final ValueChanged<String> onChanged;
 
-  const _BranchSheet({
-    required this.branches,
-    required this.current,
-    required this.onChanged,
-  });
+  const _BranchSheet(
+      {required this.branches,
+      required this.current,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.panel,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Column(
@@ -973,18 +1008,15 @@ class _BranchSheet extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
-          const Text(
-            'Switch Branch',
-            style: TextStyle(
-                color: AppColors.textStrong,
-                fontSize: 14,
-                fontWeight: FontWeight.w600),
-          ),
+          Text('Switch Branch',
+              style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 300),
@@ -992,7 +1024,7 @@ class _BranchSheet extends StatelessWidget {
               shrinkWrap: true,
               itemCount: branches.length,
               itemBuilder: (_, i) {
-                final b = branches[i];
+                final b        = branches[i];
                 final isActive = b == current;
                 return GestureDetector(
                   onTap: () {
@@ -1006,7 +1038,7 @@ class _BranchSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isActive
                           ? AppColors.blue.withValues(alpha: 0.1)
-                          : Colors.white.withValues(alpha: 0.02),
+                          : AppColors.card,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isActive
@@ -1023,17 +1055,13 @@ class _BranchSheet extends StatelessWidget {
                                 : AppColors.textDim),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            b,
-                            style: TextStyle(
-                              color: isActive
-                                  ? AppColors.blue
-                                  : AppColors.textBase,
-                              fontSize: 13,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ),
+                            child: Text(b,
+                                style: TextStyle(
+                                    color: isActive
+                                        ? AppColors.blue
+                                        : AppColors.textBase,
+                                    fontSize: 13,
+                                    fontFamily: 'monospace'))),
                         if (isActive)
                           const Icon(Icons.check_rounded,
                               size: 14, color: AppColors.blue),
@@ -1050,17 +1078,16 @@ class _BranchSheet extends StatelessWidget {
   }
 }
 
-// ─── Checkbox Widget ─────────────────────────────────────────────────────────
+// ─── Checkbox Widget ──────────────────────────────────────────────────────────
 
 class _Checkbox extends StatelessWidget {
-  final bool? value; // null = indeterminate
-
+  final bool? value;
   const _Checkbox({required this.value});
 
   @override
   Widget build(BuildContext context) {
     final isChecked = value == true;
-    final isIndet = value == null;
+    final isIndet   = value == null;
     return Container(
       width: 16,
       height: 16,
@@ -1074,13 +1101,12 @@ class _Checkbox extends StatelessWidget {
         border: Border.all(
           color: (isChecked || isIndet)
               ? AppColors.blue
-              : const Color(0xFF374151),
+              : AppColors.textMuted,
           width: 1.5,
         ),
       ),
       child: isChecked
-          ? const Icon(Icons.check_rounded,
-              size: 11, color: Colors.white)
+          ? const Icon(Icons.check_rounded, size: 11, color: Colors.white)
           : isIndet
               ? const Icon(Icons.remove_rounded,
                   size: 11, color: Colors.white)
@@ -1089,7 +1115,7 @@ class _Checkbox extends StatelessWidget {
   }
 }
 
-// ─── Toolbar Chip ────────────────────────────────────────────────────────────
+// ─── Toolbar Chip ─────────────────────────────────────────────────────────────
 
 class _ToolChip extends StatelessWidget {
   final String label;
@@ -1104,9 +1130,10 @@ class _ToolChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: AppColors.border),
         ),
@@ -1116,7 +1143,7 @@ class _ToolChip extends StatelessWidget {
             Icon(icon, size: 13, color: AppColors.textDim),
             const SizedBox(width: 4),
             Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 11, color: AppColors.textDim)),
           ],
         ),
