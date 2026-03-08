@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_theme.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
@@ -13,51 +15,64 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _storage = StorageService();
+  final _storage    = StorageService();
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
 
-  List<SavedRepo> _savedRepos = [];
-  List<PatAccount> _patAccounts = [];
-  String? _activePatLabel;
-  bool _loading = false;
+  List<SavedRepo>  _savedRepos   = [];
+  List<PatAccount> _patAccounts  = [];
+  String?          _activePatLabel;
+  bool             _loading      = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Rebuild whenever theme changes so AppColors getters re-evaluate
+    themeModeNotifier.addListener(_onThemeChange);
   }
+
+  @override
+  void dispose() {
+    themeModeNotifier.removeListener(_onThemeChange);
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  void _onThemeChange() => setState(() {});
 
   Future<void> _load() async {
     await _storage.migrateLegacyPat();
-    final repos = await _storage.loadSavedRepos();
-    final pats = await _storage.loadPatAccounts();
+    final repos       = await _storage.loadSavedRepos();
+    final pats        = await _storage.loadPatAccounts();
     final activeLabel = await _storage.getActivePatLabel();
-    setState(() {
-      _savedRepos = repos;
-      _patAccounts = pats;
-      _activePatLabel = activeLabel;
-    });
+    if (mounted) {
+      setState(() {
+        _savedRepos      = repos;
+        _patAccounts     = pats;
+        _activePatLabel  = activeLabel;
+      });
+    }
   }
 
   Future<void> _openRepo(String input) async {
     final trimmed = input.trim();
     if (trimmed.isEmpty) return;
 
-    // Parse "owner/repo" or full GitHub URL
     String owner, repo;
     final urlMatch =
         RegExp(r'github\.com/([^/\?#]+)/([^/\?#]+)').firstMatch(trimmed);
     if (urlMatch != null) {
       owner = urlMatch.group(1)!.trim();
-      repo = urlMatch.group(2)!
+      repo  = urlMatch.group(2)!
           .replaceAll(RegExp(r'\.git$', caseSensitive: false), '')
           .replaceAll(RegExp(r'[\?#].*$'), '')
           .trim();
     } else if (trimmed.contains('/')) {
       final parts = trimmed.split('/');
       owner = parts[0].trim();
-      repo = parts[1].trim();
+      repo  = parts[1].trim();
     } else {
       _showSnack('Enter owner/repo or a full GitHub URL');
       return;
@@ -73,10 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final token = await _storage.getActivePat();
-      final svc = GitHubService(token: token);
-      final info = await svc.fetchRepo(owner, repo);
-
-      // Save to history
+      final svc   = GitHubService(token: token);
+      final info  = await svc.fetchRepo(owner, repo);
       await _storage.saveRepo(info.toSavedRepo());
 
       if (!mounted) return;
@@ -85,13 +98,9 @@ class _HomeScreenState extends State<HomeScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RepoScreen(
-            info: info,
-            storage: _storage,
-          ),
+          builder: (_) => RepoScreen(info: info, storage: _storage),
         ),
       );
-      // Refresh history after returning
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -112,25 +121,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─── Build ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: Stack(
         children: [
-          // Ambient glow
-          Positioned(
-            top: -80,
-            left: -80,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0x0F3B82F6),
-              ),
-            ),
-          ),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,9 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.black54,
               child: const Center(
                 child: CircularProgressIndicator(
-                  color: AppColors.blue,
-                  strokeWidth: 2,
-                ),
+                    color: AppColors.blue, strokeWidth: 2),
               ),
             ),
         ],
@@ -159,7 +155,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─── Header ───────────────────────────────────────────────────────────────
+
   Widget _buildHeader() {
+    final isDark = themeModeNotifier.value == ThemeMode.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       child: Row(
@@ -187,11 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.white, size: 18),
           ),
           const SizedBox(width: 12),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'GitGlance',
+                'Git Grabber',
                 style: TextStyle(
                   color: AppColors.textStrong,
                   fontSize: 18,
@@ -201,20 +200,42 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Text(
                 'Repo Explorer',
-                style: TextStyle(
-                  color: AppColors.textDim,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: AppColors.textDim, fontSize: 11),
               ),
             ],
           ),
           const Spacer(),
-          // PAT management button
+
+          // ── Theme toggle ──
+          GestureDetector(
+            onTap: () {
+              themeModeNotifier.value = isDark
+                  ? ThemeMode.light
+                  : ThemeMode.dark;
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Icon(
+                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                size: 16,
+                color: isDark ? AppColors.yellow : AppColors.textBase,
+              ),
+            ),
+          ),
+
+          // ── Token button ──
           _ChipButton(
             icon: Icons.key_rounded,
-            label: _activePatLabel != null
-                ? _activePatLabel!
-                : 'Add Token',
+            label: _activePatLabel ?? 'Add Token',
             active: _activePatLabel != null,
             onTap: _showPatSheet,
           ),
@@ -222,6 +243,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ─── Search bar ───────────────────────────────────────────────────────────
 
   Widget _buildSearchBar() {
     return Padding(
@@ -232,18 +255,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: TextField(
               controller: _searchCtrl,
               focusNode: _searchFocus,
-              style: const TextStyle(
-                color: AppColors.textStrong,
-                fontSize: 14,
-                fontFamily: 'monospace',
-              ),
+              style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontSize: 14,
+                  fontFamily: 'monospace'),
               decoration: InputDecoration(
                 hintText: 'owner/repo or GitHub URL',
-                prefixIcon: const Icon(Icons.search,
+                prefixIcon: Icon(Icons.search,
                     color: AppColors.textDim, size: 18),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.close,
+                        icon: Icon(Icons.close,
                             color: AppColors.textDim, size: 16),
                         onPressed: () {
                           _searchCtrl.clear();
@@ -251,8 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: _openRepo,
@@ -260,13 +282,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          _SearchButton(
-            onTap: () => _openRepo(_searchCtrl.text),
-          ),
+          _SearchButton(onTap: () => _openRepo(_searchCtrl.text)),
         ],
       ),
     );
   }
+
+  // ─── PAT status bar ───────────────────────────────────────────────────────
 
   Widget _buildPatBar() {
     return Padding(
@@ -285,8 +307,8 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 6),
           Text(
             _activePatLabel != null
-                ? 'Using PAT: $_activePatLabel'
-                : 'No PAT — public repos only (60 req/hr)',
+                ? 'Using token: $_activePatLabel'
+                : 'No token — public repos only (60 req/hr)',
             style: TextStyle(
               fontSize: 11,
               color: _activePatLabel != null
@@ -301,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 await _storage.setActivePatLabel(null);
                 _load();
               },
-              child: const Text(
+              child: Text(
                 'Deactivate',
                 style: TextStyle(
                   fontSize: 11,
@@ -316,6 +338,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─── Recent repos list ────────────────────────────────────────────────────
+
   Widget _buildRepoList() {
     if (_savedRepos.isEmpty) {
       return Center(
@@ -326,31 +350,24 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
+                color: AppColors.card,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(
-                Icons.account_tree_outlined,
-                color: AppColors.textMuted,
-                size: 32,
-              ),
+              child: Icon(Icons.account_tree_outlined,
+                  color: AppColors.textMuted, size: 32),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No repos yet',
-              style: TextStyle(
-                  color: AppColors.textBase,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500),
-            ),
+            Text('No repos yet',
+                style: TextStyle(
+                    color: AppColors.textBase,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500)),
             const SizedBox(height: 6),
-            const Text(
-              'Search for a GitHub repo above to get started',
-              style: TextStyle(
-                  color: AppColors.textDim, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
+            Text('Search for a GitHub repo above to get started',
+                style:
+                    TextStyle(color: AppColors.textDim, fontSize: 13),
+                textAlign: TextAlign.center),
           ],
         ),
       );
@@ -363,21 +380,18 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(
             children: [
-              const Text(
-                'Recent Repos',
-                style: TextStyle(
-                  color: AppColors.textBase,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              Text('Recent Repos',
+                  style: TextStyle(
+                      color: AppColors.textBase,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5)),
               const Spacer(),
               GestureDetector(
                 onTap: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
-                    builder: (_) => const _ConfirmDialog(
+                    builder: (_) => _ConfirmDialog(
                       title: 'Clear history?',
                       message: 'This will remove all saved repos.',
                     ),
@@ -387,11 +401,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     _load();
                   }
                 },
-                child: const Text(
-                  'Clear all',
-                  style: TextStyle(
-                      fontSize: 11, color: AppColors.textMuted),
-                ),
+                child: Text('Clear all',
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textMuted)),
               ),
             ],
           ),
@@ -418,14 +430,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── PAT Management Sheet ────────────────────────────────────────────────
+  // ─── PAT / OAuth sheet ────────────────────────────────────────────────────
 
   void _showPatSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PatSheet(
+      builder: (_) => _AuthSheet(
         accounts: _patAccounts,
         activeLabel: _activePatLabel,
         storage: _storage,
@@ -435,18 +447,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ─── Repo Card ───────────────────────────────────────────────────────────────
+// ─── Repo Card ────────────────────────────────────────────────────────────────
 
 class _RepoCard extends StatelessWidget {
   final SavedRepo repo;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
-  const _RepoCard({
-    required this.repo,
-    required this.onTap,
-    required this.onRemove,
-  });
+  const _RepoCard(
+      {required this.repo, required this.onTap, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -465,77 +474,62 @@ class _RepoCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(
-                Icons.source_rounded,
-                color: AppColors.textDim,
-                size: 16,
-              ),
+              child: Icon(Icons.source_rounded,
+                  color: AppColors.textDim, size: 16),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    repo.fullName,
-                    style: const TextStyle(
-                      color: AppColors.textStrong,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
+                  Text(repo.fullName,
+                      style: TextStyle(
+                          color: AppColors.textStrong,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'monospace')),
                   if (repo.description != null &&
                       repo.description!.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(
-                      repo.description!,
-                      style: const TextStyle(
-                          color: AppColors.textDim, fontSize: 11),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(repo.description!,
+                        style: TextStyle(
+                            color: AppColors.textDim, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
                   ],
                   const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      if (repo.language != null) ...[
-                        _Tag(
+                  Row(children: [
+                    if (repo.language != null) ...[
+                      _Tag(
                           label: repo.language!,
-                          color: extColor(repo.language!.toLowerCase()),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      if (repo.stars > 0) ...[
-                        const Icon(Icons.star_rounded,
-                            size: 10, color: AppColors.yellow),
-                        const SizedBox(width: 3),
-                        Text(
-                          _fmtNum(repo.stars),
-                          style: const TextStyle(
-                              color: AppColors.textDim, fontSize: 10),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      const Icon(Icons.access_time_rounded,
-                          size: 10, color: AppColors.textMuted),
-                      const SizedBox(width: 3),
-                      Text(
-                        _timeAgo(repo.lastAccessed),
-                        style: const TextStyle(
-                            color: AppColors.textMuted, fontSize: 10),
-                      ),
+                          color: extColor(repo.language!.toLowerCase())),
+                      const SizedBox(width: 6),
                     ],
-                  ),
+                    if (repo.stars > 0) ...[
+                      const Icon(Icons.star_rounded,
+                          size: 10, color: AppColors.yellow),
+                      const SizedBox(width: 3),
+                      Text(_fmtNum(repo.stars),
+                          style: TextStyle(
+                              color: AppColors.textDim, fontSize: 10)),
+                      const SizedBox(width: 6),
+                    ],
+                    Icon(Icons.access_time_rounded,
+                        size: 10, color: AppColors.textMuted),
+                    const SizedBox(width: 3),
+                    Text(_timeAgo(repo.lastAccessed),
+                        style: TextStyle(
+                            color: AppColors.textMuted, fontSize: 10)),
+                  ]),
                 ],
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.close_rounded,
+              icon: Icon(Icons.close_rounded,
                   size: 15, color: AppColors.textMuted),
               onPressed: onRemove,
               padding: EdgeInsets.zero,
@@ -561,7 +555,7 @@ class _RepoCard extends StatelessWidget {
   }
 }
 
-// ─── Tag Chip ────────────────────────────────────────────────────────────────
+// ─── Tag Chip ─────────────────────────────────────────────────────────────────
 
 class _Tag extends StatelessWidget {
   final String label;
@@ -577,15 +571,14 @@ class _Tag extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8)),
-      ),
+      child: Text(label,
+          style:
+              TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8))),
     );
   }
 }
 
-// ─── Chip Button ─────────────────────────────────────────────────────────────
+// ─── Chip Button ──────────────────────────────────────────────────────────────
 
 class _ChipButton extends StatelessWidget {
   final IconData icon;
@@ -607,7 +600,7 @@ class _ChipButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: active
               ? AppColors.blue.withValues(alpha: 0.15)
-              : Colors.white.withValues(alpha: 0.04),
+              : AppColors.card,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: active
@@ -672,15 +665,15 @@ class _SearchButton extends StatelessWidget {
   }
 }
 
-// ─── PAT Sheet ───────────────────────────────────────────────────────────────
+// ─── Auth Sheet (PAT + GitHub OAuth) ─────────────────────────────────────────
 
-class _PatSheet extends StatefulWidget {
+class _AuthSheet extends StatefulWidget {
   final List<PatAccount> accounts;
   final String? activeLabel;
   final StorageService storage;
   final VoidCallback onChanged;
 
-  const _PatSheet({
+  const _AuthSheet({
     required this.accounts,
     required this.activeLabel,
     required this.storage,
@@ -688,32 +681,168 @@ class _PatSheet extends StatefulWidget {
   });
 
   @override
-  State<_PatSheet> createState() => _PatSheetState();
+  State<_AuthSheet> createState() => _AuthSheetState();
 }
 
-class _PatSheetState extends State<_PatSheet> {
+class _AuthSheetState extends State<_AuthSheet>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
+
+  // PAT tab
   final _labelCtrl = TextEditingController();
   final _tokenCtrl = TextEditingController();
   bool _tokenVisible = false;
+
+  // OAuth tab
+  final _clientIdCtrl = TextEditingController();
+  bool _oauthLoading = false;
+  bool _oauthCancelled = false;
+  String? _oauthUserCode;
+  String? _oauthVerificationUri;
+  String _oauthStatus = '';
+
   List<PatAccount> _accounts = [];
   String? _activeLabel;
 
   @override
   void initState() {
     super.initState();
-    _accounts = widget.accounts;
+    _tabs = TabController(length: 2, vsync: this);
+    _accounts    = widget.accounts;
     _activeLabel = widget.activeLabel;
+    _loadClientId();
   }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    _labelCtrl.dispose();
+    _tokenCtrl.dispose();
+    _clientIdCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadClientId() async {
+    final id = await widget.storage.getOAuthClientId();
+    if (id != null && mounted) setState(() => _clientIdCtrl.text = id);
+  }
+
+  // ── PAT save ────────────────────────────────────────────────────────────
+
+  Future<void> _addPat() async {
+    final label = _labelCtrl.text.trim();
+    final token = _tokenCtrl.text.trim();
+    if (label.isEmpty || token.isEmpty) return;
+
+    await widget.storage.savePatAccount(label, token);
+    await widget.storage.setActivePatLabel(label);
+
+    setState(() {
+      _accounts.removeWhere((a) => a.label == label);
+      _accounts.insert(0, PatAccount(label: label, token: token));
+      _activeLabel = label;
+      _labelCtrl.clear();
+      _tokenCtrl.clear();
+    });
+    widget.onChanged();
+  }
+
+  // ── GitHub OAuth Device Flow ─────────────────────────────────────────────
+
+  Future<void> _startOAuth() async {
+    final clientId = _clientIdCtrl.text.trim();
+    if (clientId.isEmpty) {
+      setState(() => _oauthStatus = 'Enter your GitHub OAuth App Client ID first.');
+      return;
+    }
+
+    await widget.storage.saveOAuthClientId(clientId);
+
+    setState(() {
+      _oauthLoading   = true;
+      _oauthCancelled = false;
+      _oauthStatus    = 'Requesting device code…';
+      _oauthUserCode  = null;
+    });
+
+    try {
+      final flow = await GitHubService.startDeviceFlow(clientId);
+      if (!mounted) return;
+
+      setState(() {
+        _oauthUserCode       = flow.userCode;
+        _oauthVerificationUri = flow.verificationUri;
+        _oauthStatus         =
+            'Enter the code below at the page that will open in your browser.';
+      });
+
+      // Open browser
+      await launchUrl(
+        Uri.parse(flow.verificationUri),
+        mode: LaunchMode.externalApplication,
+      );
+
+      // Poll for token
+      final token = await GitHubService.pollDeviceFlow(
+        clientId: clientId,
+        deviceCode: flow.deviceCode,
+        intervalSeconds: flow.interval,
+        onWaiting: () {
+          if (mounted) setState(() => _oauthStatus = 'Waiting for authorisation…');
+        },
+        isCancelled: () => _oauthCancelled || !mounted,
+      );
+
+      if (!mounted) return;
+
+      // Fetch username to use as label
+      final svc  = GitHubService(token: token);
+      final user = await svc.fetchCurrentUser();
+      final label = user?['login'] as String? ?? 'GitHub Account';
+
+      await widget.storage.savePatAccount(label, token);
+      await widget.storage.setActivePatLabel(label);
+
+      setState(() {
+        _accounts.removeWhere((a) => a.label == label);
+        _accounts.insert(0, PatAccount(label: label, token: token));
+        _activeLabel    = label;
+        _oauthLoading   = false;
+        _oauthUserCode  = null;
+        _oauthStatus    = 'Signed in as $label ✓';
+      });
+      widget.onChanged();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _oauthLoading  = false;
+        _oauthUserCode = null;
+        _oauthStatus   = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _cancelOAuth() {
+    setState(() {
+      _oauthCancelled = true;
+      _oauthLoading   = false;
+      _oauthUserCode  = null;
+      _oauthStatus    = 'Cancelled.';
+    });
+  }
+
+  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+      margin:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.panel,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Column(
@@ -725,170 +854,373 @@ class _PatSheetState extends State<_PatSheet> {
             child: Container(
               width: 36,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
+          // Title row
           Row(
             children: [
               const Icon(Icons.key_rounded,
                   color: AppColors.blue, size: 16),
               const SizedBox(width: 8),
-              const Text(
-                'PAT Tokens',
-                style: TextStyle(
-                  color: AppColors.textStrong,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('Authentication',
+                  style: TextStyle(
+                      color: AppColors.textStrong,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600)),
               const Spacer(),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.close_rounded,
-                      color: AppColors.textDim, size: 18),
-                ),
+                child: Icon(Icons.close_rounded,
+                    color: AppColors.textDim, size: 18),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Tokens are stored encrypted on device. Get yours at github.com/settings/tokens',
-            style: TextStyle(
-                color: AppColors.textDim, fontSize: 11),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          // Add new PAT
+          // Tabs
           Container(
-            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.02),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.border),
             ),
-            child: Column(
+            child: TabBar(
+              controller: _tabs,
+              labelColor: AppColors.blue,
+              unselectedLabelColor: AppColors.textDim,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: AppColors.blue.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                    color: AppColors.blue.withValues(alpha: 0.3)),
+              ),
+              dividerColor: Colors.transparent,
+              labelStyle: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w500),
+              tabs: const [
+                Tab(text: 'PAT Token'),
+                Tab(text: 'GitHub Login'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Tab content
+          SizedBox(
+            // Keep sheet height sensible
+            height: _oauthLoading ? 300 : null,
+            child: TabBarView(
+              controller: _tabs,
               children: [
-                TextField(
-                  controller: _labelCtrl,
-                  style: const TextStyle(
-                      color: AppColors.textStrong, fontSize: 13),
-                  decoration: const InputDecoration(
-                    hintText: 'Label (e.g. Work, Personal)',
-                    prefixIcon: Icon(Icons.label_outline_rounded,
-                        size: 16, color: AppColors.textDim),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _tokenCtrl,
-                  obscureText: !_tokenVisible,
-                  style: const TextStyle(
-                    color: AppColors.textStrong,
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'ghp_xxxx...',
-                    prefixIcon: const Icon(Icons.token_rounded,
-                        size: 16, color: AppColors.textDim),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _tokenVisible
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
-                        size: 16,
-                        color: AppColors.textDim,
-                      ),
-                      onPressed: () =>
-                          setState(() => _tokenVisible = !_tokenVisible),
-                    ),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _addPat,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Save Token',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13)),
-                  ),
-                ),
+                _buildPatTab(),
+                _buildOAuthTab(),
               ],
             ),
           ),
 
+          // Saved tokens (both tabs share this)
           if (_accounts.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text(
-              'Saved Tokens',
-              style: TextStyle(
-                color: AppColors.textDim,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
+            Text('Saved Tokens',
+                style: TextStyle(
+                    color: AppColors.textDim,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5)),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: ListView(
+                shrinkWrap: true,
+                children: _accounts
+                    .map((a) => _PatTile(
+                          account: a,
+                          isActive: a.label == _activeLabel,
+                          onActivate: () async {
+                            await widget.storage
+                                .setActivePatLabel(a.label);
+                            setState(() => _activeLabel = a.label);
+                            widget.onChanged();
+                          },
+                          onDelete: () async {
+                            await widget.storage
+                                .removePatAccount(a.label);
+                            setState(() {
+                              _accounts.removeWhere(
+                                  (x) => x.label == a.label);
+                              if (_activeLabel == a.label) {
+                                _activeLabel = null;
+                              }
+                            });
+                            widget.onChanged();
+                          },
+                        ))
+                    .toList(),
               ),
             ),
-            const SizedBox(height: 10),
-            ..._accounts.map((a) => _PatTile(
-                  account: a,
-                  isActive: a.label == _activeLabel,
-                  onActivate: () async {
-                    await widget.storage.setActivePatLabel(a.label);
-                    setState(() => _activeLabel = a.label);
-                    widget.onChanged();
-                  },
-                  onDelete: () async {
-                    await widget.storage.removePatAccount(a.label);
-                    setState(() {
-                      _accounts.removeWhere((x) => x.label == a.label);
-                      if (_activeLabel == a.label) _activeLabel = null;
-                    });
-                    widget.onChanged();
-                  },
-                )),
           ],
         ],
       ),
     );
   }
 
-  Future<void> _addPat() async {
-    final label = _labelCtrl.text.trim();
-    final token = _tokenCtrl.text.trim();
-    if (label.isEmpty || token.isEmpty) return;
+  // ── PAT Tab ──────────────────────────────────────────────────────────────
 
-    await widget.storage.savePatAccount(label, token);
-    await widget.storage.setActivePatLabel(label);
+  Widget _buildPatTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Tokens are stored encrypted on device.\nCreate yours at github.com/settings/tokens',
+          style: TextStyle(color: AppColors.textDim, fontSize: 11),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              TextField(
+                controller: _labelCtrl,
+                style: TextStyle(
+                    color: AppColors.textStrong, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Label (e.g. Work, Personal)',
+                  prefixIcon: Icon(Icons.label_outline_rounded,
+                      size: 16, color: AppColors.textDim),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _tokenCtrl,
+                obscureText: !_tokenVisible,
+                style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontSize: 13,
+                  fontFamily: 'monospace',
+                ),
+                decoration: InputDecoration(
+                  hintText: 'ghp_xxxx…',
+                  prefixIcon: Icon(Icons.token_rounded,
+                      size: 16, color: AppColors.textDim),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _tokenVisible
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      size: 16,
+                      color: AppColors.textDim,
+                    ),
+                    onPressed: () =>
+                        setState(() => _tokenVisible = !_tokenVisible),
+                  ),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _addPat,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Save Token',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-    final newAccount = PatAccount(label: label, token: token);
-    setState(() {
-      _accounts.removeWhere((a) => a.label == label);
-      _accounts.insert(0, newAccount);
-      _activeLabel = label;
-      _labelCtrl.clear();
-      _tokenCtrl.clear();
-    });
-    widget.onChanged();
+  // ── OAuth Tab ────────────────────────────────────────────────────────────
+
+  Widget _buildOAuthTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Sign in with your GitHub account via OAuth Device Flow.\nRequires a GitHub OAuth App — create one at github.com/settings/developers',
+          style: TextStyle(color: AppColors.textDim, fontSize: 11),
+        ),
+        const SizedBox(height: 14),
+
+        // Client ID field
+        TextField(
+          controller: _clientIdCtrl,
+          style: TextStyle(color: AppColors.textStrong, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'OAuth App Client ID',
+            prefixIcon: Icon(Icons.apps_rounded,
+                size: 16, color: AppColors.textDim),
+            isDense: true,
+          ),
+          enabled: !_oauthLoading,
+        ),
+        const SizedBox(height: 12),
+
+        // Status / code display
+        if (_oauthUserCode != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppColors.blue.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              children: [
+                Text('Enter this code in your browser:',
+                    style: TextStyle(
+                        color: AppColors.textDim, fontSize: 11)),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _oauthUserCode!,
+                      style: const TextStyle(
+                        color: AppColors.blue,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'monospace',
+                        letterSpacing: 6,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(
+                            ClipboardData(text: _oauthUserCode!));
+                      },
+                      child: Icon(Icons.copy_rounded,
+                          size: 16, color: AppColors.textDim),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => launchUrl(
+                    Uri.parse(
+                        _oauthVerificationUri ?? 'https://github.com/login/device'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Text(
+                    _oauthVerificationUri ?? 'github.com/login/device',
+                    style: const TextStyle(
+                        color: AppColors.blue,
+                        fontSize: 11,
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppColors.blue),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        if (_oauthStatus.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                if (_oauthLoading) ...[
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                        color: AppColors.blue,
+                        strokeWidth: 1.5),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    _oauthStatus,
+                    style: TextStyle(
+                        color: _oauthStatus.endsWith('✓')
+                            ? AppColors.green
+                            : AppColors.textDim,
+                        fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _oauthLoading ? null : _startOAuth,
+                icon: const Icon(Icons.open_in_browser_rounded, size: 15),
+                label: Text(
+                    _oauthLoading ? 'Waiting…' : 'Sign in with GitHub'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF238636),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      const Color(0xFF238636).withValues(alpha: 0.4),
+                  disabledForegroundColor: Colors.white54,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                  textStyle: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ),
+            if (_oauthLoading) ...[
+              const SizedBox(width: 10),
+              OutlinedButton(
+                onPressed: _cancelOAuth,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.red,
+                  side: BorderSide(
+                      color: AppColors.red.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Cancel',
+                    style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
   }
 }
+
+// ─── PAT Tile ─────────────────────────────────────────────────────────────────
 
 class _PatTile extends StatelessWidget {
   final PatAccount account;
@@ -909,11 +1241,12 @@ class _PatTile extends StatelessWidget {
       onTap: onActivate,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isActive
               ? AppColors.blue.withValues(alpha: 0.1)
-              : Colors.white.withValues(alpha: 0.02),
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isActive
@@ -931,30 +1264,27 @@ class _PatTile extends StatelessWidget {
               color: isActive ? AppColors.blue : AppColors.textDim,
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  account.label,
-                  style: TextStyle(
-                    color: isActive
-                        ? AppColors.blue
-                        : AppColors.textStrong,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(account.label,
+                      style: TextStyle(
+                          color: isActive
+                              ? AppColors.blue
+                              : AppColors.textStrong,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500)),
+                  Text(
+                    '${account.token.substring(0, account.token.length.clamp(0, 12))}••••',
+                    style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        fontFamily: 'monospace'),
                   ),
-                ),
-                Text(
-                  '${account.token.substring(0, account.token.length.clamp(0, 12))}••••',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const Spacer(),
             if (isActive)
               Container(
                 padding:
@@ -963,16 +1293,14 @@ class _PatTile extends StatelessWidget {
                   color: AppColors.blue.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'Active',
-                  style: TextStyle(
-                      color: AppColors.blue, fontSize: 10),
-                ),
+                child: const Text('Active',
+                    style: TextStyle(
+                        color: AppColors.blue, fontSize: 10)),
               ),
             const SizedBox(width: 6),
             GestureDetector(
               onTap: onDelete,
-              child: const Icon(Icons.delete_outline_rounded,
+              child: Icon(Icons.delete_outline_rounded,
                   size: 16, color: AppColors.textMuted),
             ),
           ],
@@ -993,18 +1321,18 @@ class _ConfirmDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(title,
-          style: const TextStyle(
-              color: AppColors.textStrong, fontSize: 15)),
+          style:
+              TextStyle(color: AppColors.textStrong, fontSize: 15)),
       content: Text(message,
-          style: const TextStyle(
-              color: AppColors.textDim, fontSize: 13)),
+          style: TextStyle(color: AppColors.textDim, fontSize: 13)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel',
-              style: TextStyle(color: AppColors.textDim)),
+          child:
+              Text('Cancel', style: TextStyle(color: AppColors.textDim)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
@@ -1015,5 +1343,3 @@ class _ConfirmDialog extends StatelessWidget {
     );
   }
 }
-
-
