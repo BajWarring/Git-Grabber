@@ -157,7 +157,7 @@ class _RepoScreenState extends State<RepoScreen> {
 
   void _setChecked(TreeNode node, bool val) {
     if (node.item != null) _tree[node.item!.idx].checked = val;
-    for (final child in node.children.values) _setChecked(child, val);
+    for (final child in node.children.values) { _setChecked(child, val); }
   }
 
   void _toggleAll(bool val) {
@@ -346,7 +346,7 @@ class _RepoScreenState extends State<RepoScreen> {
 
       lines.add('FILE STRUCTURE');
       lines.add(sep);
-      for (final f in selected) lines.add(f.path);
+      for (final f in selected) { lines.add(f.path); }
       lines.add('');
       lines.add('');
 
