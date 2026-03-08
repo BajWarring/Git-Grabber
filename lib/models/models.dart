@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-// ─── Saved Repo (for home screen history) ───────────────────────────────────
+// ─── Saved Repo ──────────────────────────────────────────────────────────────
 
 class SavedRepo {
   final String owner;
@@ -33,8 +33,8 @@ class SavedRepo {
   factory SavedRepo.fromJson(Map<String, dynamic> json) => SavedRepo(
         owner: json['owner'] ?? '',
         name: json['name'] ?? '',
-        lastAccessed: DateTime.tryParse(json['lastAccessed'] ?? '') ??
-            DateTime.now(),
+        lastAccessed:
+            DateTime.tryParse(json['lastAccessed'] ?? '') ?? DateTime.now(),
         description: json['description'],
         language: json['language'],
         stars: json['stars'] ?? 0,
@@ -45,7 +45,7 @@ class SavedRepo {
       SavedRepo.fromJson(jsonDecode(s));
 }
 
-// ─── Repo Info (from GitHub API) ────────────────────────────────────────────
+// ─── Repo Info ───────────────────────────────────────────────────────────────
 
 class RepoInfo {
   final String owner;
@@ -90,11 +90,11 @@ class RepoInfo {
       );
 }
 
-// ─── Tree Item (single file/folder from GitHub tree API) ───────────────────
+// ─── Tree Item ────────────────────────────────────────────────────────────────
 
 class TreeItem {
   final String path;
-  final String type; // 'blob' or 'tree'
+  final String type;
   final String sha;
   final String url;
   final int size;
@@ -120,7 +120,7 @@ class TreeItem {
   }
 
   bool get isFile => type == 'blob';
-  bool get isDir => type == 'tree';
+  bool get isDir  => type == 'tree';
 
   factory TreeItem.fromJson(Map<String, dynamic> json, int idx) => TreeItem(
         path: json['path'] ?? '',
@@ -132,13 +132,13 @@ class TreeItem {
       );
 }
 
-// ─── Tree Node (virtual tree structure) ────────────────────────────────────
+// ─── Tree Node ────────────────────────────────────────────────────────────────
 
 class TreeNode {
   final String name;
   final String path;
   final bool isDir;
-  final TreeItem? item; // non-null for files
+  final TreeItem? item;
   final Map<String, TreeNode> children;
   bool isExpanded;
 
@@ -157,15 +157,13 @@ class TreeNode {
   }
 }
 
-// ─── Flat visible node for ListView.builder ─────────────────────────────────
-
 class VisibleNode {
   final TreeNode node;
   final int depth;
   const VisibleNode({required this.node, required this.depth});
 }
 
-// ─── PAT Account ────────────────────────────────────────────────────────────
+// ─── PAT Account ─────────────────────────────────────────────────────────────
 
 class PatAccount {
   final String label;
@@ -176,4 +174,30 @@ class PatAccount {
   Map<String, dynamic> toJson() => {'label': label, 'token': token};
   factory PatAccount.fromJson(Map<String, dynamic> j) =>
       PatAccount(label: j['label'] ?? '', token: j['token'] ?? '');
+}
+
+// ─── GitHub OAuth Device Flow ─────────────────────────────────────────────────
+
+class DeviceFlowStart {
+  final String deviceCode;
+  final String userCode;
+  final String verificationUri;
+  final int expiresIn;
+  final int interval;
+
+  const DeviceFlowStart({
+    required this.deviceCode,
+    required this.userCode,
+    required this.verificationUri,
+    required this.expiresIn,
+    required this.interval,
+  });
+
+  factory DeviceFlowStart.fromJson(Map<String, dynamic> j) => DeviceFlowStart(
+        deviceCode: j['device_code'] ?? '',
+        userCode: j['user_code'] ?? '',
+        verificationUri: j['verification_uri'] ?? 'https://github.com/login/device',
+        expiresIn: j['expires_in'] ?? 900,
+        interval: j['interval'] ?? 5,
+      );
 }
