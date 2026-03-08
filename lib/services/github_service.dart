@@ -14,7 +14,7 @@ class GitHubService {
           'Authorization': 'token $token',
       };
 
-  // ─── Fetch repo metadata ─────────────────────────────────────────────────
+  // ─── Repo metadata ────────────────────────────────────────────────────────
 
   Future<RepoInfo> fetchRepo(String owner, String repo) async {
     final res = await http
@@ -27,12 +27,11 @@ class GitHubService {
     return RepoInfo.fromJson(owner, data);
   }
 
-  // ─── Fetch branches ──────────────────────────────────────────────────────
+  // ─── Branches ─────────────────────────────────────────────────────────────
 
   Future<List<String>> fetchBranches(String owner, String repo) async {
     final res = await http
-        .get(
-            Uri.parse('$_base/repos/$owner/$repo/branches?per_page=100'),
+        .get(Uri.parse('$_base/repos/$owner/$repo/branches?per_page=100'),
             headers: _headers)
         .timeout(const Duration(seconds: 15));
     if (!res.statusCode.toString().startsWith('2')) return [];
@@ -40,12 +39,11 @@ class GitHubService {
     return data.map<String>((b) => b['name'] as String).toList();
   }
 
-  // ─── Fetch full git tree ─────────────────────────────────────────────────
+  // ─── Full git tree ────────────────────────────────────────────────────────
 
   Future<({List<TreeItem> items, bool truncated})> fetchTree(
       String owner, String repo, String branch) async {
-    final url =
-        '$_base/repos/$owner/$repo/git/trees/$branch?recursive=1';
+    final url = '$_base/repos/$owner/$repo/git/trees/$branch?recursive=1';
     final res = await http
         .get(Uri.parse(url), headers: _headers)
         .timeout(const Duration(seconds: 30));
@@ -66,7 +64,7 @@ class GitHubService {
     return (items: items, truncated: data['truncated'] == true);
   }
 
-  // ─── Fetch file content (base64 decoded) ─────────────────────────────────
+  // ─── File content ─────────────────────────────────────────────────────────
 
   Future<String> fetchFileContent(TreeItem file) async {
     final res = await http
@@ -81,7 +79,6 @@ class GitHubService {
       return '// File content unavailable (binary or empty).';
     }
     try {
-      // GitHub wraps base64 in newlines — strip before decoding
       final clean = encoded.replaceAll(RegExp(r'\s'), '');
       final bytes = base64Decode(clean);
       return utf8.decode(bytes, allowMalformed: true);
@@ -90,25 +87,118 @@ class GitHubService {
     }
   }
 
-  // ─── Error helper ────────────────────────────────────────────────────────
+  // ─── GitHub user info (for OAuth) ─────────────────────────────────────────
 
-  Exception _apiError(
-      int status, Map<String, dynamic> data, String owner, String repo) {
-    final msg = data['message'] ?? '';
-    if (status == 401) {
-      return Exception('Bad credentials — check your PAT token.');
+  Future<Map<String, dynamic>?> fetchCurrentUser() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$_base/user'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ─── Device Flow: Start ───────────────────────────────────────────────────
+  //
+  // Requires a GitHub OAuth App with device flow enabled.
+  // The clientId here is the OAuth App's client_id — NOT a secret.
+  // Users create their own at: github.com/settings/developers
+  //
+  static Future<DeviceFlowStart> startDeviceFlow(String clientId) async {
+    final res = await http
+        .post(
+          Uri.parse('https://github.com/login/device/code'),
+          headers: {'Accept': 'application/json'},
+          body: {'client_id': clientId, 'scope': 'repo read:user'},
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to start device flow (${res.statusCode}).');
     }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    if (data['error'] != null) {
+      throw Exception(data['error_description'] ?? data['error']);
+    }
+    return DeviceFlowStart.fromJson(data);
+  }
+
+  // ─── Device Flow: Poll for token ─────────────────────────────────────────
+
+  /// Polls until the user authorises or the flow expires/errors.
+  /// Calls [onWaiting] each poll cycle so the UI can update.
+  static Future<String> pollDeviceFlow({
+    required String clientId,
+    required String deviceCode,
+    required int intervalSeconds,
+    required void Function() onWaiting,
+    required bool Function() isCancelled,
+  }) async {
+    var interval = intervalSeconds;
+    final deadline =
+        DateTime.now().add(const Duration(minutes: 15));
+
+    while (DateTime.now().isBefore(deadline)) {
+      if (isCancelled()) throw Exception('Cancelled');
+      await Future.delayed(Duration(seconds: interval));
+      if (isCancelled()) throw Exception('Cancelled');
+
+      onWaiting();
+
+      final res = await http
+          .post(
+            Uri.parse('https://github.com/login/oauth/access_token'),
+            headers: {'Accept': 'application/json'},
+            body: {
+              'client_id': clientId,
+              'device_code': deviceCode,
+              'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (res.statusCode != 200) continue;
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final error = data['error'] as String?;
+
+      if (error == null) {
+        final tok = data['access_token'] as String?;
+        if (tok != null && tok.isNotEmpty) return tok;
+      } else if (error == 'authorization_pending') {
+        continue; // user hasn't authorised yet
+      } else if (error == 'slow_down') {
+        interval += 5; // GitHub asked us to slow down
+      } else if (error == 'expired_token') {
+        throw Exception('Device code expired. Please try again.');
+      } else if (error == 'access_denied') {
+        throw Exception('Authorisation was denied.');
+      } else {
+        throw Exception(data['error_description'] ?? error);
+      }
+    }
+    throw Exception('Device flow timed out.');
+  }
+
+  // ─── Error helper ─────────────────────────────────────────────────────────
+
+  Exception _apiError(int status, Map<String, dynamic> data,
+      String owner, String repo) {
+    final msg = data['message'] ?? '';
+    if (status == 401) return Exception('Bad credentials — check your token.');
     if (status == 403) {
       if (msg.toString().toLowerCase().contains('rate limit')) {
         return Exception(
-            'GitHub API rate limit hit. Add a PAT token to get 5,000 req/hr.');
+            'GitHub API rate limit hit. Add a token to get 5 000 req/hr.');
       }
-      return Exception(
-          'Access forbidden. Repo may be private — add a PAT token.');
+      return Exception('Access forbidden. Repo may be private — add a token.');
     }
     if (status == 404) {
       return Exception(
-          'Repo "$owner/$repo" not found. Check the URL or add a PAT for private repos.');
+          'Repo "$owner/$repo" not found. Check the URL or add a token for private repos.');
     }
     if (status == 422) {
       return Exception(
