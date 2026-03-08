@@ -161,7 +161,7 @@ class _RepoScreenState extends State<RepoScreen> {
   }
 
   void _toggleAll(bool val) {
-    for (final item in _tree) item.checked = val;
+    for (final item in _tree) { item.checked = val; }
     setState(() {});
   }
 
