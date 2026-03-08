@@ -3,10 +3,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/models.dart';
 
 class StorageService {
-  static const _reposKey = 'saved_repos_v2';
-  static const _activePatKey = 'active_pat_label';
-  static const _patPrefix = 'pat_token_';
-  static const _patListKey = 'pat_accounts_list';
+  static const _reposKey      = 'saved_repos_v2';
+  static const _activePatKey  = 'active_pat_label';
+  static const _patPrefix     = 'pat_token_';
+  static const _patListKey    = 'pat_accounts_list';
+  static const _oauthClientId = 'github_oauth_client_id';
 
   final _secure = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -19,11 +20,7 @@ class StorageService {
     final raw = prefs.getStringList(_reposKey) ?? [];
     return raw
         .map((s) {
-          try {
-            return SavedRepo.fromJsonString(s);
-          } catch (_) {
-            return null;
-          }
+          try { return SavedRepo.fromJsonString(s); } catch (_) { return null; }
         })
         .whereType<SavedRepo>()
         .toList()
@@ -33,13 +30,9 @@ class StorageService {
   Future<void> saveRepo(SavedRepo repo) async {
     final prefs = await SharedPreferences.getInstance();
     final existing = await loadSavedRepos();
-
-    // Replace if already exists
     final filtered =
         existing.where((r) => r.fullName != repo.fullName).toList();
     filtered.insert(0, repo);
-
-    // Keep max 30 recent repos
     final trimmed = filtered.take(30).toList();
     await prefs.setStringList(
         _reposKey, trimmed.map((r) => r.toJsonString()).toList());
@@ -91,11 +84,8 @@ class StorageService {
     final labels = prefs.getStringList(_patListKey) ?? [];
     labels.remove(label);
     await prefs.setStringList(_patListKey, labels);
-    // If removed was active, clear active
     final active = prefs.getString(_activePatKey);
-    if (active == label) {
-      await prefs.remove(_activePatKey);
-    }
+    if (active == label) await prefs.remove(_activePatKey);
   }
 
   Future<String?> getActivePat() async {
@@ -116,6 +106,22 @@ class StorageService {
       await prefs.remove(_activePatKey);
     } else {
       await prefs.setString(_activePatKey, label);
+    }
+  }
+
+  // ─── GitHub OAuth Client ID ───────────────────────────────────────────────
+
+  Future<String?> getOAuthClientId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_oauthClientId);
+  }
+
+  Future<void> saveOAuthClientId(String clientId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (clientId.isEmpty) {
+      await prefs.remove(_oauthClientId);
+    } else {
+      await prefs.setString(_oauthClientId, clientId);
     }
   }
 
