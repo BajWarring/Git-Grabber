@@ -13,7 +13,7 @@ if (keyPropsFile.exists()) {
 }
 
 android {
-    namespace = "com.gitglance.app"
+    namespace = "com.gitgrabber.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,7 +28,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.gitglance.app"
+        applicationId = "com.gitgrabber.app"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
