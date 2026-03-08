@@ -391,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
-                    builder: (_) => _ConfirmDialog(
+                    builder: (_) => const _ConfirmDialog(
                       title: 'Clear history?',
                       message: 'This will remove all saved repos.',
                     ),
@@ -1150,7 +1150,7 @@ class _AuthSheetState extends State<_AuthSheet>
             child: Row(
               children: [
                 if (_oauthLoading) ...[
-                  SizedBox(
+                  const SizedBox(
                     width: 12,
                     height: 12,
                     child: CircularProgressIndicator(
